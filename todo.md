@@ -29,3 +29,7 @@
 - [x] "Download Form" dropdown in masthead with all 9 content types
 - [x] Broadcast rights question in video section (network license, reversion status)
 - [x] Digitization status question in video section (physical media vs. digital, quality)
+- [ ] Website question in company section (URL + whether it's the primary content source)
+- [ ] Success/accolades question set (awards, certifications, sales figures, ratings)
+- [ ] Subject matter / uniqueness questions per content type (friendly language, no AI jargon)
+- [ ] Update PDF templates to include website, accolades, and subject matter sections

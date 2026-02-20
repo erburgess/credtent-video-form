@@ -43,6 +43,8 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
           { label: "Company / Organization Name", type: "text" },
           { label: "Contact Name", type: "text" },
           { label: "Contact Email", type: "text" },
+          { label: "Website URL (if applicable)", type: "text", hint: "e.g. https://www.yourcompany.com" },
+          { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes, most content is there", "Partially", "No, content lives elsewhere", "Not applicable"] },
         ],
       },
       {
@@ -156,6 +158,25 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         ],
       },
       {
+        title: "Success & Recognition",
+        questions: [
+          { label: "Has this content received any awards, nominations, or official recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+          { label: "Awards, nominations, or accolades (list all you can)", type: "multiline", hint: "e.g. Emmy Award for Outstanding Variety Series, 1956 & 1957; Peabody Award 1971" },
+          { label: "Is this content listed or reviewed on public platforms (IMDb, Rotten Tomatoes, Goodreads, Amazon, etc.)?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+          { label: "Platform ratings / scores (approximate is fine)", type: "multiline", hint: "e.g. IMDb 8.4/10 (12,000 ratings); Rotten Tomatoes 94% audience score" },
+          { label: "Are there certified or publicly known viewership / sales figures?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+          { label: "Sales, viewership, or circulation figures", type: "multiline", hint: "e.g. 12 million viewers per episode average; 4× Platinum certified" },
+        ],
+      },
+      {
+        title: "Subject Matter & Uniqueness",
+        questions: [
+          { label: "What topics, themes, or subject areas does this content cover?", type: "multiline", hint: "e.g. Rock and roll history, celebrity interviews, American pop culture 1948–1971, live musical performances" },
+          { label: "What makes this content special or hard to find anywhere else?", type: "multiline", hint: "e.g. One-of-a-kind live performances never commercially released; the only archive of its kind from this era" },
+          { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
+        ],
+      },
+      {
         title: "Rights & Licensing",
         questions: [
           { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -178,6 +199,8 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
           { label: "Company / Organization Name", type: "text" },
           { label: "Contact Name", type: "text" },
           { label: "Contact Email", type: "text" },
+          { label: "Website URL (if applicable)", type: "text", hint: "e.g. https://www.yourcompany.com" },
+          { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes, most content is there", "Partially", "No, content lives elsewhere", "Not applicable"] },
         ],
       },
       {
@@ -212,7 +235,7 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Audio & Podcasts",
     subtitle: "Podcasts, music, speech, interviews, sound libraries, radio",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Content Types", questions: [
         { label: "Types of audio content", type: "checkbox-list", options: ["Podcasts", "Music / songs", "Speech / narration", "Interviews", "Lectures / educational", "Sound effects / Foley", "Ambient / environmental", "Radio broadcasts", "Audiobooks", "Other"] },
         { label: "Languages / dialects", type: "checkbox-list", options: ["English only", "Multiple languages", "Regional dialects", "Non-English primary", "Multilingual"] },
@@ -223,6 +246,19 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         { label: "Transcripts available?", type: "radio-list", options: ["Full transcripts", "Partial transcripts", "Auto-generated only", "None"] },
         { label: "File formats", type: "checkbox-list", options: ["MP3", "WAV", "FLAC", "AAC", "OGG", "Mixed"] },
         { label: "Speaker / performer diversity", type: "checkbox-list", options: ["Age diversity", "Gender diversity", "Accent / dialect diversity", "Ethnic diversity", "Professional diversity"] },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Awards, chart positions, or official recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / accolades detail", type: "multiline", hint: "e.g. Grammy nominated, Billboard Top 10, Podcast of the Year" },
+        { label: "Listed on public platforms (Spotify, Apple Podcasts, Discogs, etc.)?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Platform ratings / listener counts (approximate)", type: "multiline" },
+        { label: "Certified or publicly known sales / stream figures?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Sales / stream figures", type: "multiline", hint: "e.g. 4× Platinum, 500 million streams, 2 million monthly listeners" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this content special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -236,7 +272,7 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Images & Photography",
     subtitle: "Photos, illustrations, stock imagery, fine art, archival images",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Collection Details", questions: [
         { label: "Types of images", type: "checkbox-list", options: ["Photography", "Illustrations", "Graphic design", "Infographics", "Screenshots", "Medical / scientific imagery", "Satellite / aerial", "Archival / historical", "Art / fine art", "Product images", "Other"] },
         { label: "Primary subjects", type: "checkbox-list", options: ["People / portraits", "Nature / landscapes", "Urban / architecture", "Objects / products", "Events / scenes", "Abstract", "Animals", "Food", "Sports / action", "Mixed"] },
@@ -245,6 +281,17 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         { label: "File formats", type: "checkbox-list", options: ["JPEG", "PNG", "TIFF", "RAW", "WebP", "SVG", "Mixed"] },
         { label: "Existing annotations / metadata", type: "checkbox-list", options: ["Captions / descriptions", "Object detection labels", "Segmentation masks", "Keyword tags", "EXIF / location data", "None"] },
         { label: "Do images feature identifiable human subjects?", type: "radio-list", options: ["Yes", "No", "Some"] },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Has this work received awards, exhibitions, or critical recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / exhibitions / accolades detail", type: "multiline" },
+        { label: "Featured in publications, galleries, or public collections?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Detail", type: "multiline" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this collection special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -258,7 +305,7 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Social Media Content",
     subtitle: "Posts, threads, reels, stories, UGC archives",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Platform & Content", questions: [
         { label: "Platforms", type: "checkbox-list", options: ["Twitter / X", "Facebook", "Instagram", "LinkedIn", "TikTok", "YouTube", "Reddit", "Threads", "Pinterest", "Other"] },
         { label: "Content types in archive", type: "checkbox-list", options: ["Text posts", "Images", "Short-form video", "Long-form video", "Stories / ephemeral", "Comments / replies", "Threads", "Live streams", "Mixed"] },
@@ -266,6 +313,19 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         { label: "Time period covered", type: "radio-list", options: ["Under 1 year", "1–3 years", "3–5 years", "5–10 years", "10+ years"] },
         { label: "Account types", type: "checkbox-list", options: ["Brand / corporate accounts", "Individual creators", "News / media accounts", "Community / group pages", "Mixed"] },
         { label: "Approximate total volume", type: "text", hint: "e.g. 500,000 posts, 10 million impressions" },
+      ]},
+       { title: "Success & Recognition", questions: [
+        { label: "Awards, nominations, or official recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / accolades detail", type: "multiline", hint: "e.g. Pulitzer Prize, New York Times Bestseller, Booker Prize nominee" },
+        { label: "Listed or reviewed on public platforms (Goodreads, Amazon, etc.)?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Platform ratings / reviews (approximate)", type: "multiline", hint: "e.g. Goodreads 4.6/5 (80,000 ratings); Amazon #1 Bestseller" },
+        { label: "Certified or publicly known sales / circulation figures?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Sales / circulation figures", type: "multiline", hint: "e.g. 500,000 copies sold; 2 million monthly readers" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline", hint: "e.g. Personal finance, investing, entrepreneurship, business biography" },
+        { label: "What makes this content special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -279,13 +339,24 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Design & Illustration",
     subtitle: "Graphic design, logos, UI assets, vector art, motion graphics",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Asset Details", questions: [
         { label: "Types of design assets", type: "checkbox-list", options: ["Logo / brand identity", "UI / UX designs", "Icons / symbols", "Typography / fonts", "Patterns / textures", "Packaging design", "Motion graphics", "3D models / renders", "Vector illustrations", "Other"] },
         { label: "Design style", type: "checkbox-list", options: ["Minimalist", "Bold / expressive", "Corporate / professional", "Playful / illustrative", "Technical / diagrammatic", "Mixed styles"] },
         { label: "File formats", type: "checkbox-list", options: ["SVG", "AI (Adobe Illustrator)", "PSD (Photoshop)", "Figma", "Sketch", "PNG / JPEG exports", "Mixed"] },
         { label: "Existing metadata / annotations", type: "checkbox-list", options: ["Style / category tags", "Color palette data", "Usage context", "Brand guidelines", "None"] },
         { label: "Approximate total volume", type: "text", hint: "e.g. 50,000 assets" },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Has this work received industry awards or recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / recognition detail", type: "multiline", hint: "e.g. D&AD Pencil, Cannes Lions, Webby Award" },
+        { label: "Featured in publications, galleries, or major brand campaigns?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Detail", type: "multiline" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this collection special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -299,13 +370,24 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Games & Interactive",
     subtitle: "Video games, interactive media, game assets, VR/AR",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Content Details", questions: [
         { label: "Types of game / interactive content", type: "checkbox-list", options: ["Full video games", "Game assets (art / audio / code)", "Interactive simulations", "VR / AR experiences", "Game scripts / dialogue", "Gameplay footage", "Level designs", "Other"] },
         { label: "Target platforms", type: "checkbox-list", options: ["PC / desktop", "Console", "Mobile", "Web browser", "VR / AR headsets", "Mixed"] },
         { label: "Genres", type: "checkbox-list", options: ["Action / adventure", "Strategy", "Simulation", "RPG", "Sports", "Puzzle", "Educational", "Casual", "Other"] },
         { label: "Specific asset types available", type: "checkbox-list", options: ["3D models", "2D sprites / art", "Audio / music", "Code / scripts", "Level data", "Character animations", "Dialogue / narrative"] },
         { label: "Approximate total volume", type: "text", hint: "e.g. 20 titles, 500GB of assets" },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Has this content received industry awards or critical recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / recognition detail", type: "multiline", hint: "e.g. BAFTA Games Award, Game of the Year, IGN 9/10" },
+        { label: "Listed on public platforms (Steam, Metacritic, IGDB, etc.)?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Platform ratings / sales figures (approximate)", type: "multiline", hint: "e.g. Metacritic 87, 5 million units sold" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this content special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },
@@ -319,7 +401,7 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Film & Cinema",
     subtitle: "Feature films, shorts, documentaries, screenplays, production assets",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Content Details", questions: [
         { label: "Types of film content", type: "checkbox-list", options: ["Feature films", "Short films", "Documentaries", "Screenplays / scripts", "Production stills", "Behind-the-scenes footage", "Trailers / promos", "Animation", "Other"] },
         { label: "Genres", type: "checkbox-list", options: ["Drama", "Comedy", "Action / thriller", "Horror", "Sci-fi / fantasy", "Documentary", "Animation", "Experimental", "Mixed"] },
@@ -329,6 +411,19 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         { label: "Subtitles / closed captions available?", type: "radio-list", options: ["Full subtitles (multiple languages)", "English only", "Partial", "None", "Not sure"] },
         { label: "Rights status", type: "radio-list", options: ["Fully owned / produced in-house", "Acquired with full rights", "Acquired with limited rights", "Mixed / unclear", "Not sure"] },
         { label: "Approximate total volume", type: "text", hint: "e.g. 300 feature films, 1,200 hours" },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Has this content received awards, nominations, or critical recognition?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / nominations detail", type: "multiline", hint: "e.g. Academy Award nominee, Cannes Palme d'Or, Sundance Grand Jury Prize" },
+        { label: "Listed on IMDb, Rotten Tomatoes, Letterboxd, or similar?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Platform ratings / scores (approximate)", type: "multiline", hint: "e.g. IMDb 8.1/10; Rotten Tomatoes 92% critics score" },
+        { label: "Certified or publicly known box office / distribution figures?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Box office / distribution figures", type: "multiline", hint: "e.g. $45M worldwide box office; distributed in 40 countries" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this content special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Open to licensing for AI training?", type: "radio-list", options: ["Yes", "Maybe — need more info", "No, not at this time"] },
@@ -341,13 +436,24 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
     label: "Other / Custom Content",
     subtitle: "Describe a content type not covered by the categories above",
     sections: [
-      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }] },
+      { title: "Organization", questions: [{ label: "Company / Organization Name", type: "text" }, { label: "Contact Name", type: "text" }, { label: "Contact Email", type: "text" }, { label: "Website URL (if applicable)", type: "text" }, { label: "Is the website the primary home for your content?", type: "radio-list", options: ["Yes", "Partially", "No", "N/A"] }] },
       { title: "Content Description", questions: [
         { label: "Content type name / short description", type: "text", hint: "e.g. 3D models, scientific datasets, code repositories" },
         { label: "Format or medium", type: "checkbox-list", options: ["Text / documents", "Images", "Video", "Audio", "3D / spatial", "Structured data", "Code", "Mixed", "Other"] },
         { label: "Domain or industry", type: "checkbox-list", options: ["Science / research", "Technology", "Healthcare", "Education", "Finance", "Legal", "Government", "Arts / culture", "Sports", "Other"] },
         { label: "Approximate total volume", type: "text", hint: "e.g. 10,000 files, 500GB, 2 million records" },
         { label: "What makes this content unique or valuable for AI training?", type: "multiline" },
+      ]},
+      { title: "Success & Recognition", questions: [
+        { label: "Has this content received awards, recognition, or notable accolades?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Awards / recognition detail", type: "multiline" },
+        { label: "Listed or reviewed on any public platforms?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+        { label: "Platform ratings / scores", type: "multiline" },
+      ]},
+      { title: "Subject Matter & Uniqueness", questions: [
+        { label: "Topics, themes, or subject areas covered", type: "multiline" },
+        { label: "What makes this content special or hard to find elsewhere?", type: "multiline" },
+        { label: "Primary audience", type: "checkbox-list", options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"] },
       ]},
       { title: "Rights & Licensing", questions: [
         { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },

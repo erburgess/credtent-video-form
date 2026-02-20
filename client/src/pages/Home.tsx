@@ -131,6 +131,68 @@ const SHARED_QUESTIONS: Question[] = [
     ask: "Has this content been used in any previous AI or machine learning projects?",
     type: "toggle",
   },
+  // ── Success & accolades ──────────────────────────────────────────────────────
+  {
+    id: "hasAwards",
+    ask: "Has this content received any awards, nominations, or official recognition?",
+    type: "toggle",
+  },
+  {
+    id: "awardsDetail",
+    ask: "Tell us about those awards or nominations — even a rough list is helpful.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Emmy Award for Outstanding Variety Series, 1956 & 1957; Peabody Award 1971'",
+    showIf: (a) => a.hasAwards === true,
+  },
+  {
+    id: "hasCriticalRatings",
+    ask: "Is this content listed or reviewed on any public platforms — like IMDb, Rotten Tomatoes, Goodreads, Amazon, or similar sites?",
+    type: "toggle",
+  },
+  {
+    id: "criticalRatingsDetail",
+    ask: "Which platforms, and roughly what scores or ratings does it have?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'IMDb 8.4/10 (12,000 ratings); Rotten Tomatoes 94% audience score' — approximate is fine",
+    showIf: (a) => a.hasCriticalRatings === true,
+  },
+  {
+    id: "hasSalesFigures",
+    ask: "Are there any certified or publicly known sales, viewership, or circulation figures for this content?",
+    type: "toggle",
+  },
+  {
+    id: "salesFiguresDetail",
+    ask: "Share whatever figures you have — box office, album certifications, book sales, average viewership, subscriber counts, anything like that.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. '4× Platinum certified album', '12 million viewers per episode average', '500,000 copies sold'",
+    showIf: (a) => a.hasSalesFigures === true,
+  },
+  // ── Subject matter & uniqueness ──────────────────────────────────────────────
+  {
+    id: "subjectMatters",
+    ask: "What topics, themes, or subject areas does this content cover? Think broadly — what would someone search for to find it?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Rock and roll history, celebrity interviews, American pop culture 1948–1971, live musical performances'",
+  },
+  {
+    id: "contentUniqueness",
+    ask: "In your own words, what makes this content special or hard to find anywhere else?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'One-of-a-kind live performances that were never commercially released', 'The only archive of its kind from this era'",
+  },
+  {
+    id: "audienceReach",
+    ask: "Who is the primary audience for this content, and how large is that audience?",
+    type: "chips",
+    optional: true,
+    options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"],
+  },
 ];
 
 // ── Video-specific questions ──────────────────────────────────────────────────
@@ -614,6 +676,21 @@ const COMPANY_QUESTIONS: Question[] = [
     id: "contactEmail",
     ask: "And the best email address for follow-up?",
     type: "email",
+  },
+  {
+    id: "websiteUrl",
+    ask: "Does your organization have a website? If so, what's the URL?",
+    type: "text",
+    optional: true,
+    hint: "e.g. https://www.yourcompany.com — or leave blank if not applicable",
+  },
+  {
+    id: "websiteIsMainContent",
+    ask: "Is that website the main home for your content — meaning most of what you create lives there or is linked from there?",
+    type: "chips-single",
+    optional: true,
+    options: ["Yes, most of our content is there", "Partially — some content is there", "No, our content lives elsewhere", "Not applicable"],
+    showIf: (a) => !!a.websiteUrl && String(a.websiteUrl).trim().length > 3,
   },
 ];
 
