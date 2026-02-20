@@ -1,0 +1,129 @@
+import { COOKIE_NAME } from "@shared/const";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import {
+  createAssessment,
+  getAssessmentById,
+  listAssessments,
+  updateAssessmentStatus,
+  countAssessments,
+} from "./db";
+import { notifyOwner } from "./_core/notification";
+
+// Admin-only guard
+const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+export const appRouter = router({
+  system: systemRouter,
+
+  auth: router({
+    me: publicProcedure.query(opts => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return { success: true } as const;
+    }),
+  }),
+
+  // ── Assessment procedures ────────────────────────────────────────────────────
+  assessments: router({
+    /**
+     * Submit a completed content valuation assessment.
+     * Public — no login required so any respondent can submit.
+     */
+    submit: publicProcedure
+      .input(
+        z.object({
+          companyAnswers: z.record(z.string(), z.unknown()),
+          contentEntries: z.array(
+            z.object({
+              type: z.string(),
+              answers: z.record(z.string(), z.unknown()),
+              customLabel: z.string().optional(),
+            })
+          ),
+          completedTypes: z.array(z.string()),
+          notes: z.string().optional(),
+          submissionEmail: z.email().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const companyName = String(input.companyAnswers.companyName ?? "");
+        const contactName = String(input.companyAnswers.contactName ?? "");
+        const contactEmail = String(input.companyAnswers.contactEmail ?? "");
+
+        const id = await createAssessment({
+          companyName: companyName || null,
+          contactName: contactName || null,
+          contactEmail: contactEmail || null,
+          submissionEmail: input.submissionEmail ?? contactEmail ?? null,
+          companyAnswers: input.companyAnswers,
+          contentEntries: input.contentEntries,
+          contentTypes: input.completedTypes.join(", "),
+          notes: input.notes ?? null,
+          status: "submitted",
+        });
+
+        // Notify owner
+        await notifyOwner({
+          title: `New content valuation: ${companyName || "Unknown company"}`,
+          content: `${contactName} (${contactEmail}) submitted a content profile covering: ${input.completedTypes.join(", ")}. Assessment ID: ${id}`,
+        });
+
+        return { success: true, id };
+      }),
+
+    /**
+     * Admin: list all assessments with optional search and pagination.
+     */
+    list: adminProcedure
+      .input(
+        z.object({
+          limit: z.number().min(1).max(200).default(50),
+          offset: z.number().min(0).default(0),
+          search: z.string().optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        const rows = await listAssessments(input);
+        const total = await countAssessments();
+        return { rows, total };
+      }),
+
+    /**
+     * Admin: get a single assessment by ID.
+     */
+    get: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const row = await getAssessmentById(input.id);
+        if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+        return row;
+      }),
+
+    /**
+     * Admin: update the status of an assessment.
+     */
+    updateStatus: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          status: z.enum(["submitted", "reviewed", "in_progress", "archived"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await updateAssessmentStatus(input.id, input.status);
+        return { success: true };
+      }),
+  }),
+});
+
+export type AppRouter = typeof appRouter;

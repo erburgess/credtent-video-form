@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { trpc } from "@/lib/trpc";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
@@ -908,6 +909,8 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false);
   const [summaryEmail, setSummaryEmail] = useState("");
   const [summarySubmitted, setSummarySubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitMutation = trpc.assessments.submit.useMutation();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Current type's working answers (for showIf logic)
@@ -1148,6 +1151,33 @@ export default function Home() {
       setTimeout(() => setChatHistory((p) => [...p, { role: "assistant", text: COMPANY_QUESTIONS[0].ask }]), 700);
     }, 300);
   };
+
+  // ── Summary submit handler ─────────────────────────────────────────────────
+
+  const handleSummarySubmit = useCallback(async () => {
+    if (!summaryEmail.includes("@") || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await submitMutation.mutateAsync({
+        companyAnswers: appState.companyAnswers as Record<string, unknown>,
+        contentEntries: appState.contentEntries.map((e) => ({
+          type: e.type,
+          answers: e.answers as Record<string, unknown>,
+          customLabel: e.customLabel,
+        })),
+        completedTypes: appState.completedTypes,
+        notes: appState.notes || undefined,
+        submissionEmail: summaryEmail,
+      });
+      setSummarySubmitted(true);
+    } catch (err) {
+      console.error("Failed to submit assessment", err);
+      // Still mark as submitted locally so the user isn't blocked
+      setSummarySubmitted(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [summaryEmail, isSubmitting, submitMutation, appState]);
 
   // ── Current question for input rendering ──────────────────────────────────
 
@@ -1494,17 +1524,17 @@ export default function Home() {
                           type="email"
                           value={summaryEmail}
                           onChange={(e) => setSummaryEmail(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter" && summaryEmail.includes("@")) setSummarySubmitted(true); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" && summaryEmail.includes("@") && !isSubmitting) handleSummarySubmit(); }}
                           placeholder="your@email.com"
                           className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[oklch(0.68_0.19_41)] focus:border-transparent transition"
                         />
                       </div>
                       <button
                         type="button"
-                        disabled={!summaryEmail.includes("@")}
-                        onClick={() => setSummarySubmitted(true)}
+                        disabled={!summaryEmail.includes("@") || isSubmitting}
+                        onClick={handleSummarySubmit}
                         className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[oklch(0.68_0.19_41)] hover:bg-[oklch(0.62_0.19_41)] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all active:scale-95 flex-shrink-0">
-                        Submit <ArrowRight className="w-3.5 h-3.5" />
+                        {isSubmitting ? "Saving…" : "Submit"} <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </>

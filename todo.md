@@ -1,0 +1,26 @@
+# Credtent Content Valuation — TODO
+
+- [x] Conversational chat + live form split-screen layout
+- [x] Company info questions (name, contact, email)
+- [x] Multi-content-type selector (8 types + Other/Custom)
+- [x] Per-type question sets: Video, Written, Audio, Images, Social, Design, Games, Film
+- [x] Other/Custom content type with free-text description flow
+- [x] Loop back to ask "anything else?" after each type
+- [x] B-roll section in video questions
+- [x] Notable/famous people fields in video and film sections
+- [x] TV/streaming/entertainment categories in video questions
+- [x] "Not applicable" / "Not sure" options on all non-essential chip questions
+- [x] Historical/cultural significance question (shared)
+- [x] Completion summary screen with full profile recap
+- [x] Email capture panel on summary screen
+- [x] Upgrade to full-stack (Express + tRPC + PostgreSQL)
+- [x] assessments table in database schema
+- [x] tRPC submit procedure (public) — saves assessment to DB + notifies owner
+- [x] tRPC list/get/updateStatus procedures (admin only)
+- [x] Admin dashboard at /admin — list, search, filter, status update, detail drawer
+- [x] Vitest tests for submit and list procedures
+- [ ] Pre-populate summary email from contact email entered earlier
+- [ ] "Download as PDF" button on summary screen
+- [ ] Broadcast rights question for archival TV content
+- [ ] Digitization status question for archival video
+- [ ] Allow multiple "Other / Custom" entries with distinct names
