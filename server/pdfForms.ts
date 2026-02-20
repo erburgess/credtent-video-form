@@ -7,7 +7,7 @@
 import PDFDocument from "pdfkit";
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
-const NAVY  = "#1a2744";   // oklch(0.22 0.08 264) approx
+const NAVY  = "#1a2744"; // VERSION_CHECK_2026   // oklch(0.22 0.08 264) approx
 const ORANGE = "#d97706";  // oklch(0.68 0.19 41) approx
 const LIGHT_GRAY = "#f5f6f8";
 const MID_GRAY   = "#9ca3af";
@@ -488,13 +488,12 @@ export function generateContentFormPDF(contentType: ContentTypeKey): Promise<Buf
 
   const PAGE_WIDTH = doc.page.width - 56 - 56; // usable width
   const LEFT = 56;
+  // Bottom boundary: leave room for footer (36px) plus a small buffer
+  const BOTTOM = doc.page.height - 50;
 
   // ── Helper: draw the page header ──────────────────────────────────────────
   const drawHeader = (isFirstPage: boolean) => {
-    // Navy banner
     doc.rect(0, 0, doc.page.width, isFirstPage ? 90 : 50).fill(NAVY);
-
-    // Logo shield (simple SVG-style polygon approximation)
     const sx = 36, sy = 12, sw = 28, sh = 28;
     doc.save()
       .moveTo(sx + sw / 2, sy)
@@ -506,83 +505,100 @@ export function generateContentFormPDF(contentType: ContentTypeKey): Promise<Buf
       .closePath()
       .fill(ORANGE);
     doc.fillColor(WHITE).fontSize(14).font("Helvetica-Bold")
-      .text("C", sx + sw / 2 - 4, sy + 8);
-
-    // Wordmark
+      .text("C", sx + sw / 2 - 4, sy + 8, { lineBreak: false });
     doc.fillColor(WHITE).fontSize(16).font("Helvetica-Bold")
-      .text("Credtent", sx + sw + 8, sy + 6);
+      .text("Credtent", sx + sw + 8, sy + 6, { lineBreak: false });
     doc.fillColor("#ffffff88").fontSize(9).font("Helvetica")
-      .text("Content Valuation", sx + sw + 8, sy + 24);
-
+      .text("Content Valuation", sx + sw + 8, sy + 24, { lineBreak: false });
     if (isFirstPage) {
-      // Form title block
       doc.fillColor(WHITE).fontSize(18).font("Helvetica-Bold")
-        .text(form.label, LEFT, 58);
+        .text(form.label, LEFT, 58, { lineBreak: false });
       doc.fillColor("#ffffffaa").fontSize(9).font("Helvetica")
-        .text(form.subtitle, LEFT, 80);
+        .text(form.subtitle, LEFT, 80, { lineBreak: false });
     }
-
     doc.restore();
   };
 
   // ── Helper: draw the page footer ──────────────────────────────────────────
   const drawFooter = () => {
-    const y = doc.page.height - 36;
-    doc.rect(0, y, doc.page.width, 36).fill(LIGHT_GRAY);
+    const fy = doc.page.height - 36;
+    const savedY = doc.y;
+    // Temporarily remove bottom margin so PDFKit doesn't auto-page-break
+    // when we draw text near the bottom of the page
+    const savedBottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.rect(0, fy, doc.page.width, 36).fill(LIGHT_GRAY);
     doc.fillColor(MID_GRAY).fontSize(7.5).font("Helvetica")
-      .text("Credtent · Content Valuation Questionnaire · credtent.org", LEFT, y + 12, { align: "left" })
-      .text(`${form.label}`, 0, y + 12, { align: "right", width: doc.page.width - 56 });
+      .text("Credtent · Content Valuation Questionnaire · credtent.org", LEFT, fy + 13, { lineBreak: false });
+    doc.fillColor(MID_GRAY).fontSize(7.5).font("Helvetica")
+      .text(form.label, LEFT, fy + 13, { align: "right", width: PAGE_WIDTH, lineBreak: false });
+    // Restore margin and cursor position
+    doc.page.margins.bottom = savedBottomMargin;
+    doc.y = savedY;
+  };
+
+  // ── Helper: start a new page with header + footer, reset doc.y ────────────
+  const newPage = () => {
+    doc.addPage();
+    drawHeader(false);
+    drawFooter();
+    doc.y = 68; // content starts below the continuation header
+  };
+
+  // ── Helper: ensure there is `space` pts available; add page if not ─────────
+  const ensureSpace = (space: number) => {
+    if (doc.y + space > BOTTOM) {
+      newPage();
+    }
   };
 
   // ── Helper: draw a text field ──────────────────────────────────────────────
   const drawTextField = (label: string, hint?: string, multiline = false) => {
-    const fieldHeight = multiline ? 56 : 22;
-    const needed = 14 + 10 + fieldHeight + 12;
-    if (doc.y + needed > doc.page.height - 80) {
-      doc.addPage();
-      drawHeader(false);
-      drawFooter();
-      doc.y = 68;
-    }
+    const labelH = 11;
+    const hintH  = hint ? 10 : 0;
+    const fieldH = multiline ? 52 : 20;
+    const gap    = 6;
+    const total  = labelH + hintH + gap + fieldH + 10;
+
+    ensureSpace(total);
 
     doc.fillColor(DARK_GRAY).fontSize(9).font("Helvetica-Bold")
-      .text(label, LEFT, doc.y);
+      .text(label, LEFT, doc.y, { width: PAGE_WIDTH, lineBreak: false });
+    doc.y += labelH;
     if (hint) {
       doc.fillColor(MID_GRAY).fontSize(7.5).font("Helvetica-Oblique")
-        .text(hint, LEFT, doc.y + 1);
+        .text(hint, LEFT, doc.y, { width: PAGE_WIDTH, lineBreak: false });
+      doc.y += hintH;
     }
-    const boxY = doc.y + (hint ? 12 : 10);
-    doc.rect(LEFT, boxY, PAGE_WIDTH, fieldHeight)
+    doc.y += gap;
+    doc.rect(LEFT, doc.y, PAGE_WIDTH, fieldH)
       .strokeColor("#d1d5db").lineWidth(0.75).stroke();
-    doc.y = boxY + fieldHeight + 10;
+    doc.y += fieldH + 10;
   };
 
   // ── Helper: draw a checkbox/radio list ────────────────────────────────────
   const drawOptionList = (label: string, options: string[], multi: boolean) => {
-    const cols = 2;
-    const colW = PAGE_WIDTH / cols;
-    const rowH = 14;
-    const rows = Math.ceil(options.length / cols);
-    const needed = 14 + 10 + rows * rowH + 12;
+    const cols  = 2;
+    const colW  = PAGE_WIDTH / cols;
+    const rowH  = 13;
+    const rows  = Math.ceil(options.length / cols);
+    const labelH = 11;
+    const gap    = 6;
+    const total  = labelH + gap + rows * rowH + 10;
 
-    if (doc.y + needed > doc.page.height - 80) {
-      doc.addPage();
-      drawHeader(false);
-      drawFooter();
-      doc.y = 68;
-    }
+    ensureSpace(total);
 
     doc.fillColor(DARK_GRAY).fontSize(9).font("Helvetica-Bold")
-      .text(label, LEFT, doc.y);
-    const startY = doc.y + 10;
+      .text(label, LEFT, doc.y, { width: PAGE_WIDTH, lineBreak: false });
+    doc.y += labelH + gap;
 
+    const startY = doc.y;
     options.forEach((opt, idx) => {
       const col = idx % cols;
       const row = Math.floor(idx / cols);
-      const x = LEFT + col * colW;
-      const y = startY + row * rowH;
+      const x   = LEFT + col * colW;
+      const y   = startY + row * rowH;
 
-      // Box or circle
       if (multi) {
         doc.rect(x, y + 1, 8, 8).strokeColor("#9ca3af").lineWidth(0.75).stroke();
       } else {
@@ -595,37 +611,30 @@ export function generateContentFormPDF(contentType: ContentTypeKey): Promise<Buf
     doc.y = startY + rows * rowH + 10;
   };
 
-  // ── Draw first page header ─────────────────────────────────────────────────
+  // ── Draw first page header + footer, then reset doc.y ─────────────────────
   drawHeader(true);
   drawFooter();
-  doc.y = 108;
+  doc.y = 108; // content starts below the first-page header
 
   // ── Instructions block ─────────────────────────────────────────────────────
-  doc.rect(LEFT, doc.y, PAGE_WIDTH, 30).fill(LIGHT_GRAY);
+  const instrText =
+    "Please complete this form and return it to Credtent at info@credtent.org. " +
+    "You may also complete this assessment online at credtent.org. " +
+    "All information is treated as confidential and used solely for valuation purposes.";
+  const instrH = 28;
+  doc.rect(LEFT, doc.y, PAGE_WIDTH, instrH).fill(LIGHT_GRAY);
   doc.fillColor(DARK_GRAY).fontSize(8).font("Helvetica")
-    .text(
-      "Please complete this form and return it to Credtent at info@credtent.org. " +
-      "You may also complete this assessment online at credtent.org. " +
-      "All information is treated as confidential and used solely for valuation purposes.",
-      LEFT + 8, doc.y + 8, { width: PAGE_WIDTH - 16 }
-    );
-  doc.y += 38;
-
+    .text(instrText, LEFT + 8, doc.y + 8, { width: PAGE_WIDTH - 16, lineBreak: false });
+   doc.y += instrH + 10;
   // ── Render sections ────────────────────────────────────────────────────────
   for (const section of form.sections) {
-    // Section header
-    const sectionHeaderNeeded = 24 + 8;
-    if (doc.y + sectionHeaderNeeded > doc.page.height - 80) {
-      doc.addPage();
-      drawHeader(false);
-      drawFooter();
-      doc.y = 68;
-    }
+    ensureSpace(32); // keep section header + at least one question together
 
-    doc.rect(LEFT, doc.y, PAGE_WIDTH, 20).fill(NAVY);
+    const secY = doc.y;
+    doc.rect(LEFT, secY, PAGE_WIDTH, 20).fill(NAVY);
     doc.fillColor(WHITE).fontSize(9).font("Helvetica-Bold")
-      .text(section.title.toUpperCase(), LEFT + 8, doc.y + 6);
-    doc.y += 28;
+      .text(section.title.toUpperCase(), LEFT + 8, secY + 6, { lineBreak: false });
+    doc.y = secY + 26;
 
     for (const q of section.questions) {
       if (q.type === "text") {
@@ -639,24 +648,17 @@ export function generateContentFormPDF(contentType: ContentTypeKey): Promise<Buf
       }
     }
 
-    doc.y += 4; // section spacing
+    doc.y += 4; // small gap between sections
   }
 
   // ── Closing block ──────────────────────────────────────────────────────────
-  const closingNeeded = 50;
-  if (doc.y + closingNeeded > doc.page.height - 80) {
-    doc.addPage();
-    drawHeader(false);
-    drawFooter();
-    doc.y = 68;
-  }
-  doc.rect(LEFT, doc.y, PAGE_WIDTH, 40).fill(LIGHT_GRAY);
+  ensureSpace(48);
+  const closingText =
+    "Thank you for completing this form. Return completed forms to info@credtent.org or visit credtent.org to submit online. " +
+    "A Credtent specialist will follow up within 5 business days with a preliminary valuation estimate.";
+  doc.rect(LEFT, doc.y, PAGE_WIDTH, 38).fill(LIGHT_GRAY);
   doc.fillColor(DARK_GRAY).fontSize(8).font("Helvetica")
-    .text(
-      "Thank you for completing this form. Return completed forms to info@credtent.org or visit credtent.org to submit online. " +
-      "A Credtent specialist will follow up within 5 business days with a preliminary valuation estimate.",
-      LEFT + 8, doc.y + 8, { width: PAGE_WIDTH - 16 }
-    );
+    .text(closingText, LEFT + 8, doc.y + 8, { width: PAGE_WIDTH - 16, lineBreak: false });
 
   doc.end();
   }); // end Promise
