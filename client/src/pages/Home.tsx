@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
-  ChevronRight,
+  ChevronRight, HelpCircle,
 } from "lucide-react";
 
 // ─── Content Types ────────────────────────────────────────────────────────────
@@ -24,9 +24,10 @@ export type ContentType =
   | "social"
   | "design"
   | "games"
-  | "film";
+  | "film"
+  | "other";
 
-const CONTENT_TYPE_META: Record<ContentType, { label: string; icon: React.ElementType; color: string; description: string }> = {
+const CONTENT_TYPE_META: Record<ContentType, { label: string; icon: React.ElementType; color: string; description: string; customLabel?: string }> = {
   video:   { label: "Video Content",         icon: Film,        color: "oklch(0.55 0.15 264)", description: "Corporate, educational, documentary, B-roll, raw footage" },
   written: { label: "Written Works",         icon: FileText,    color: "oklch(0.55 0.18 145)", description: "Books, articles, blogs, journalism, scripts, research" },
   audio:   { label: "Audio & Podcasts",      icon: Mic,         color: "oklch(0.60 0.18 30)",  description: "Podcasts, music, speech, interviews, sound libraries" },
@@ -35,6 +36,7 @@ const CONTENT_TYPE_META: Record<ContentType, { label: string; icon: React.Elemen
   design:  { label: "Design & Illustration", icon: Palette,     color: "oklch(0.58 0.18 60)",  description: "Graphic design, logos, UI assets, vector art" },
   games:   { label: "Games & Interactive",   icon: Gamepad2,    color: "oklch(0.52 0.18 280)", description: "Video games, interactive media, game assets" },
   film:    { label: "Film & Cinema",         icon: Clapperboard,color: "oklch(0.45 0.12 264)", description: "Feature films, shorts, screenplays, production assets" },
+  other:   { label: "Other / Custom",          icon: HelpCircle,  color: "oklch(0.52 0.08 264)", description: "Describe a content type not listed above" },
 };
 
 const ALL_CONTENT_TYPES = Object.keys(CONTENT_TYPE_META) as ContentType[];
@@ -369,6 +371,42 @@ const DESIGN_QUESTIONS: Question[] = [
   },
 ];
 
+// ── Other/Custom content questions ──────────────────────────────────────────
+
+const OTHER_QUESTIONS: Question[] = [
+  {
+    id: "otherContentDescription",
+    ask: "How would you describe this content? Give it a name or short description.",
+    type: "text",
+    hint: "e.g. '3D models', 'scientific datasets', 'code repositories'",
+  },
+  {
+    id: "otherContentFormat",
+    ask: "What format or medium is this content in?",
+    type: "chips",
+    options: ["Text/documents", "Images", "Video", "Audio", "3D/spatial", "Structured data", "Code", "Mixed", "Other"],
+  },
+  {
+    id: "otherContentDomain",
+    ask: "What domain or industry does this content relate to?",
+    type: "chips",
+    options: ["Science/research", "Technology", "Healthcare", "Education", "Finance", "Legal", "Government", "Arts/culture", "Sports", "Other"],
+  },
+  {
+    id: "otherContentVolume",
+    ask: "What's the approximate volume of this content?",
+    type: "text",
+    hint: "e.g. '10,000 files', '500GB', '2 million records'",
+  },
+  {
+    id: "otherContentUniqueness",
+    ask: "What makes this content unique or valuable for AI training?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. rare subject matter, specialized expertise, unique annotations…",
+  },
+];
+
 // ── Games/Interactive questions ───────────────────────────────────────────────
 
 const GAMES_QUESTIONS: Question[] = [
@@ -444,6 +482,7 @@ const TYPE_QUESTIONS: Record<ContentType, Question[]> = {
   design:  DESIGN_QUESTIONS,
   games:   GAMES_QUESTIONS,
   film:    FILM_QUESTIONS,
+  other:   OTHER_QUESTIONS,
 };
 
 // ─── Company questions ────────────────────────────────────────────────────────
@@ -479,6 +518,7 @@ type Phase =
 interface ContentEntry {
   type: ContentType;
   answers: TypeAnswers;
+  customLabel?: string;
 }
 
 interface AppState {
@@ -546,39 +586,79 @@ function ContentTypeSelector({
     if (completed.includes(ct)) return;
     onSelect(selected.includes(ct) ? selected.filter((s) => s !== ct) : [...selected, ct]);
   };
+  // Separate 'other' from the main grid so it spans full width at the bottom
+  const mainTypes = ALL_CONTENT_TYPES.filter((ct) => ct !== "other");
   return (
-    <div className="grid grid-cols-2 gap-2 mt-3">
-      {ALL_CONTENT_TYPES.map((ct) => {
+    <div className="mt-3 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {mainTypes.map((ct) => {
+          const meta = CONTENT_TYPE_META[ct];
+          const Icon = meta.icon;
+          const isSelected = selected.includes(ct);
+          const isDone = completed.includes(ct);
+          return (
+            <button key={ct} type="button" onClick={() => toggle(ct)} disabled={isDone}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all duration-150 ${
+                isDone
+                  ? "bg-green-50 border-green-200 opacity-70 cursor-default"
+                  : isSelected
+                  ? "bg-[oklch(0.22_0.08_264)] border-[oklch(0.22_0.08_264)] text-white"
+                  : "bg-white border-gray-200 text-gray-700 hover:border-[oklch(0.22_0.08_264)]"
+              }`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                isDone ? "bg-green-100" : isSelected ? "bg-white/20" : "bg-gray-50"
+              }`}>
+                {isDone
+                  ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  : <Icon className="w-4 h-4" style={{ color: isDone || isSelected ? undefined : meta.color }} />
+                }
+              </div>
+              <div className="min-w-0">
+                <p className={`text-xs font-semibold truncate ${isSelected ? "text-white" : isDone ? "text-green-700" : "text-gray-800"}`}>
+                  {meta.label}
+                </p>
+                {isDone && <p className="text-xs text-green-500">Complete</p>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {/* Other / Custom — full-width dashed tile */}
+      {(() => {
+        const ct: ContentType = "other";
         const meta = CONTENT_TYPE_META[ct];
         const Icon = meta.icon;
         const isSelected = selected.includes(ct);
         const isDone = completed.includes(ct);
         return (
-          <button key={ct} type="button" onClick={() => toggle(ct)} disabled={isDone}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all duration-150 ${
+          <button type="button" onClick={() => toggle(ct)} disabled={isDone}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-dashed text-left transition-all duration-150 ${
               isDone
                 ? "bg-green-50 border-green-200 opacity-70 cursor-default"
                 : isSelected
                 ? "bg-[oklch(0.22_0.08_264)] border-[oklch(0.22_0.08_264)] text-white"
-                : "bg-white border-gray-200 text-gray-700 hover:border-[oklch(0.22_0.08_264)]"
+                : "bg-white border-gray-200 text-gray-500 hover:border-[oklch(0.52_0.08_264)] hover:text-[oklch(0.52_0.08_264)]"
             }`}>
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
               isDone ? "bg-green-100" : isSelected ? "bg-white/20" : "bg-gray-50"
             }`}>
               {isDone
                 ? <CheckCircle2 className="w-4 h-4 text-green-500" />
-                : <Icon className="w-4 h-4" style={{ color: isDone || isSelected ? undefined : meta.color }} />
+                : <Icon className="w-4 h-4" style={{ color: isSelected ? "white" : meta.color }} />
               }
             </div>
             <div className="min-w-0">
-              <p className={`text-xs font-semibold truncate ${isSelected ? "text-white" : isDone ? "text-green-700" : "text-gray-800"}`}>
+              <p className={`text-xs font-semibold ${isSelected ? "text-white" : isDone ? "text-green-700" : "text-gray-600"}`}>
                 {meta.label}
               </p>
+              {!isDone && !isSelected && (
+                <p className="text-xs text-gray-400 truncate">{meta.description}</p>
+              )}
               {isDone && <p className="text-xs text-green-500">Complete</p>}
             </div>
           </button>
         );
-      })}
+      })()}
     </div>
   );
 }
@@ -704,14 +784,16 @@ function ProfilePanel({ state }: { state: AppState }) {
         {contentEntries.map((entry, i) => {
           const meta = CONTENT_TYPE_META[entry.type];
           const Icon = meta.icon;
-          const items = Object.entries(entry.answers).filter(([, v]) => {
+          const displayLabel = entry.customLabel || meta.label;
+          const items = Object.entries(entry.answers).filter(([k, v]) => {
+            if (k === "otherContentDescription") return false; // shown as the label already
             const f = formatVal(v); return f && f !== "false" && f !== "No";
           });
           return (
             <div key={i} className="animate-in fade-in duration-300">
               <div className="flex items-center gap-1.5 mb-2">
                 <Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: meta.color }}>{meta.label}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: meta.color }}>{displayLabel}</p>
               </div>
               <div className="space-y-1.5 pl-5">
                 {items.map(([k, v]) => (
@@ -856,7 +938,11 @@ export default function Home() {
 
   const finishType = useCallback((state: AppState, type: ContentType) => {
     const meta = CONTENT_TYPE_META[type];
-    const newEntry: ContentEntry = { type, answers: { ...currentTypeAnswers.current } };
+    // For 'other', use the user's custom description as the label if available
+    const customLabel = type === "other" && currentTypeAnswers.current.otherContentDescription
+      ? String(currentTypeAnswers.current.otherContentDescription)
+      : undefined;
+    const newEntry: ContentEntry = { type, answers: { ...currentTypeAnswers.current }, customLabel };
     const newCompleted = [...state.completedTypes, type];
     currentTypeAnswers.current = {};
 
@@ -867,7 +953,8 @@ export default function Home() {
       phase: { stage: "more-types" },
     }));
 
-    pushAssistant(`Great — I've captured your ${meta.label} profile. Do you have any other types of content to add?`);
+    const displayName = customLabel || meta.label;
+    pushAssistant(`Great — I've captured your ${displayName} profile. Do you have any other types of content to add?`);
     setPendingTypeSelect([]);
   }, [pushAssistant]);
 
@@ -1042,8 +1129,10 @@ export default function Home() {
               {appState.completedTypes.map((t) => {
                 const meta = CONTENT_TYPE_META[t];
                 const Icon = meta.icon;
+                const entry = appState.contentEntries.find((e) => e.type === t);
+                const title = entry?.customLabel || meta.label;
                 return (
-                  <div key={t} className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center" title={meta.label}>
+                  <div key={t} className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center" title={title}>
                     <Icon className="w-3.5 h-3.5 text-white/70" />
                   </div>
                 );
