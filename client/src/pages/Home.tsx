@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
-  ChevronRight, HelpCircle,
+  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles,
 } from "lucide-react";
 
 // ─── Content Types ────────────────────────────────────────────────────────────
@@ -837,6 +837,8 @@ export default function Home() {
   const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
   const [pendingTypeSelect, setPendingTypeSelect] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [summaryEmail, setSummaryEmail] = useState("");
+  const [summarySubmitted, setSummarySubmitted] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Current type's working answers (for showIf logic)
@@ -932,7 +934,6 @@ export default function Home() {
 
     if (phase.stage === "notes") {
       setAppState((s) => ({ ...s, phase: { stage: "done" } }));
-      pushAssistant("That's everything! Your content profile is complete. Credtent will review your responses and follow up with a valuation estimate. Thank you!");
     }
   }, [pushAssistant]);
 
@@ -1071,6 +1072,7 @@ export default function Home() {
     setAppState({ companyAnswers: {}, contentEntries: [], completedTypes: [], phase: { stage: "company", qIndex: 0 }, notes: "" });
     setChatHistory([]);
     setInputText(""); setPendingChips([]); setPendingToggle(null); setPendingTypeSelect([]);
+    setSummaryEmail(""); setSummarySubmitted(false);
     currentTypeAnswers.current = {};
     setTimeout(() => {
       setChatHistory([{ role: "assistant", text: "Hi! I'm the Credtent content assessment assistant. I'll help you build a complete content profile across all of your content types — so we can assess the full value of your library for AI training licensing." }]);
@@ -1305,6 +1307,153 @@ export default function Home() {
           <ProfilePanel state={appState} />
         </aside>
       </div>
+
+      {/* Summary overlay — slides up when done */}
+      {isDone && (
+        <div className="absolute inset-0 z-20 bg-[oklch(0.98_0.003_264)] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Summary header */}
+          <header className="flex-shrink-0 bg-[oklch(0.22_0.08_264)] h-14 flex items-center px-4 sm:px-6 justify-between">
+            <div className="flex items-center gap-2.5">
+              <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+                <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
+                <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora,sans-serif">C</text>
+              </svg>
+              <span className="text-white font-bold text-base tracking-tight">Credtent</span>
+              <span className="text-white/30 text-sm mx-1 hidden sm:inline">|</span>
+              <span className="text-white/60 text-sm hidden sm:inline">Content Valuation</span>
+            </div>
+            <button type="button" onClick={handleReset} className="flex items-center gap-1.5 text-white/50 hover:text-white/80 text-xs transition-colors">
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New assessment</span>
+            </button>
+          </header>
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+              {/* Hero confirmation */}
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-500" />
+                </div>
+                <h1 className="text-2xl font-bold text-[oklch(0.22_0.08_264)] mb-2">Your Content Profile is Complete</h1>
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                  Here's a summary of what you've shared. Credtent will use this to prepare a valuation estimate for your content library.
+                </p>
+              </div>
+
+              {/* Organization card */}
+              {Object.keys(appState.companyAnswers).length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-50 bg-gray-50/50">
+                    <Building2 className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
+                    <span className="text-xs font-bold text-[oklch(0.22_0.08_264)] uppercase tracking-wider">Organization</span>
+                  </div>
+                  <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {Object.entries(appState.companyAnswers).map(([k, v]) => {
+                      const f = formatVal(v); if (!f) return null;
+                      const labels: Record<string, string> = { companyName: "Company", contactName: "Contact", contactEmail: "Email" };
+                      return (
+                        <div key={k}>
+                          <p className="text-xs text-gray-400 mb-0.5">{labels[k] || k}</p>
+                          <p className="text-sm font-semibold text-gray-800">{f}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Content type cards */}
+              {appState.contentEntries.map((entry, i) => {
+                const meta = CONTENT_TYPE_META[entry.type];
+                const Icon = meta.icon;
+                const displayLabel = entry.customLabel || meta.label;
+                const items = Object.entries(entry.answers).filter(([k, v]) => {
+                  if (k === "otherContentDescription") return false;
+                  const f = formatVal(v); return f && f !== "false" && f !== "No";
+                });
+                return (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-50" style={{ background: meta.color + "0d" }}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: meta.color + "22" }}>
+                        <Icon className="w-4 h-4" style={{ color: meta.color }} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: meta.color }}>{displayLabel}</span>
+                    </div>
+                    <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                      {items.map(([k, v]) => {
+                        const f = formatVal(v);
+                        return (
+                          <div key={k} className="flex gap-2 items-start">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-gray-700 leading-snug">{f}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Notes */}
+              {appState.notes && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Additional Notes</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{appState.notes}</p>
+                </div>
+              )}
+
+              {/* Email capture */}
+              <div className="bg-[oklch(0.22_0.08_264)] rounded-2xl px-6 py-6">
+                {!summarySubmitted ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
+                      <h2 className="text-sm font-bold text-white">Get your valuation estimate</h2>
+                    </div>
+                    <p className="text-xs text-white/60 mb-4">
+                      Enter your email and Credtent will follow up with a personalised content valuation based on your profile.
+                    </p>
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type="email"
+                          value={summaryEmail}
+                          onChange={(e) => setSummaryEmail(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter" && summaryEmail.includes("@")) setSummarySubmitted(true); }}
+                          placeholder="your@email.com"
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[oklch(0.68_0.19_41)] focus:border-transparent transition"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!summaryEmail.includes("@")}
+                        onClick={() => setSummarySubmitted(true)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[oklch(0.68_0.19_41)] hover:bg-[oklch(0.62_0.19_41)] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all active:scale-95 flex-shrink-0">
+                        Submit <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="w-9 h-9 rounded-full bg-green-400/20 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">You're all set!</p>
+                      <p className="text-xs text-white/60">We'll send your valuation estimate to <span className="text-white/80 font-medium">{summaryEmail}</span></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pb-8" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
