@@ -1,107 +1,343 @@
 /**
- * Credtent Video Content Valuation Form
- * Design: Clean Assessment Dashboard — Sora font, navy/orange palette
- * Layout: Sticky left nav + scrollable form sections
- * UX: Chip selectors, toggles, sliders replace heavy text inputs
+ * Credtent Video Content Valuation — Conversational Chat + Live Form
+ * Design: Split-screen — left chat assistant, right live form summary
+ * The assistant asks questions one at a time; answers populate the form panel.
+ * Palette: Credtent navy (#1B2057-ish) + orange, Sora font
  */
 
-import { useState, useEffect, useRef } from "react";
-import { CheckCircle2, ChevronRight, Film, Settings2, Tag, BarChart3, Shield, Sparkles, Layers, BookOpen } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  CheckCircle2, ChevronRight, Send, Film, Settings2, Tag,
+  BarChart3, Shield, Sparkles, Layers, BookOpen, Building2,
+  RotateCcw,
+} from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Question Flow Definition ─────────────────────────────────────────────────
 
-type ChipGroupProps = {
+type AnswerType = "chips" | "chips-single" | "toggle" | "text" | "email" | "textarea";
+
+interface Question {
+  id: string;
+  section: string;
+  sectionIcon: React.ElementType;
+  ask: string;
+  hint?: string;
+  type: AnswerType;
+  options?: string[];
+  optional?: boolean;
+  showIf?: (answers: Answers) => boolean;
+}
+
+type Answers = Record<string, string | string[] | boolean>;
+
+const QUESTIONS: Question[] = [
+  // Company Info first — sets context
+  {
+    id: "companyName", section: "Company", sectionIcon: Building2,
+    ask: "Let's start with your company. What's the name of the organization whose video content we're evaluating?",
+    type: "text",
+  },
+  {
+    id: "contactName", section: "Company", sectionIcon: Building2,
+    ask: "Great. And who should Credtent follow up with? What's your name?",
+    type: "text",
+  },
+  {
+    id: "contactEmail", section: "Company", sectionIcon: Building2,
+    ask: "What's the best email address for follow-up?",
+    type: "email",
+  },
+
+  // Content Characteristics
+  {
+    id: "genres", section: "Content", sectionIcon: Film,
+    ask: "What's the primary genre or subject matter of your video library? Select all that apply.",
+    type: "chips",
+    options: ["Sports", "Educational", "Documentary", "Corporate", "Entertainment", "News/Journalism", "Medical/Health", "Industrial", "Surveillance/Security", "User-Generated", "Nature/Wildlife", "Travel", "Lifestyle", "Other"],
+  },
+  {
+    id: "clipDuration", section: "Content", sectionIcon: Film,
+    ask: "What's the typical duration of individual clips or segments?",
+    type: "chips-single",
+    options: ["Under 30s", "30s–2min", "2–10min", "10–30min", "30min+", "Mixed"],
+  },
+  {
+    id: "contentType", section: "Content", sectionIcon: Film,
+    ask: "How would you describe the shot style of the content?",
+    type: "chips",
+    options: ["Static shots", "Dynamic movement", "Aerial/drone", "POV/first-person", "Time-lapse", "Slow motion", "Mixed"],
+  },
+  {
+    id: "emotionalTone", section: "Content", sectionIcon: Film,
+    ask: "What's the general emotional tone of the videos?",
+    type: "chips",
+    options: ["Neutral", "Positive/Upbeat", "Negative/Tense", "Instructional", "Emotional", "Dramatic", "Comedic"],
+  },
+  {
+    id: "hasHumanSubjects", section: "Content", sectionIcon: Film,
+    ask: "Does the content feature human subjects — people, faces, or activities?",
+    type: "toggle",
+  },
+  {
+    id: "demographicDiversity", section: "Content", sectionIcon: Film,
+    ask: "What kinds of demographic diversity are represented in the human subjects?",
+    type: "chips",
+    options: ["Age diversity", "Gender diversity", "Ethnic diversity", "Geographic diversity", "Activity diversity", "Environment diversity"],
+    showIf: (a) => a.hasHumanSubjects === true,
+  },
+
+  // B-Roll
+  {
+    id: "hasBRoll", section: "B-Roll", sectionIcon: Layers,
+    ask: "Does your library include B-roll footage — cutaways, establishing shots, or supplementary clips?",
+    type: "toggle",
+  },
+  {
+    id: "bRollTypes", section: "B-Roll", sectionIcon: Layers,
+    ask: "What types of B-roll are included? Select all that apply.",
+    type: "chips",
+    options: ["Establishing shots", "Cutaway footage", "Reaction shots", "Environmental/location", "Product/object close-ups", "Action sequences", "Crowd/event footage", "Nature/landscape", "Urban/architectural", "Abstract/artistic"],
+    showIf: (a) => a.hasBRoll === true,
+  },
+  {
+    id: "bRollVolume", section: "B-Roll", sectionIcon: Layers,
+    ask: "Roughly what proportion of the total library is B-roll?",
+    type: "chips-single",
+    options: ["Under 10%", "10–25%", "25–50%", "50–75%", "75%+", "Unsure"],
+    showIf: (a) => a.hasBRoll === true,
+  },
+
+  // Technical
+  {
+    id: "formats", section: "Technical", sectionIcon: Settings2,
+    ask: "What video formats or codecs are used in the library?",
+    type: "chips",
+    options: ["MP4", "MOV", "AVI", "MXF", "ProRes", "RAW", "Other"],
+  },
+  {
+    id: "resolution", section: "Technical", sectionIcon: Settings2,
+    ask: "What resolutions does the content include?",
+    type: "chips",
+    options: ["SD (480p)", "HD (720p)", "Full HD (1080p)", "2K", "4K", "6K+", "Mixed"],
+  },
+  {
+    id: "frameRate", section: "Technical", sectionIcon: Settings2,
+    ask: "What's the primary frame rate?",
+    type: "chips-single",
+    options: ["24fps", "25fps", "30fps", "60fps", "120fps+", "Variable", "Unknown"],
+  },
+  {
+    id: "compressionLevel", section: "Technical", sectionIcon: Settings2,
+    ask: "How compressed is the footage overall?",
+    type: "chips-single",
+    options: ["Raw/Uncompressed", "Lightly compressed", "Standard compressed", "Highly compressed", "Mixed"],
+  },
+  {
+    id: "audioType", section: "Technical", sectionIcon: Settings2,
+    ask: "What type of audio is present in the videos?",
+    type: "chips",
+    options: ["Speech/Dialogue", "Music", "Ambient sound", "Sound effects", "No audio", "Mixed"],
+  },
+  {
+    id: "technicalIssues", section: "Technical", sectionIcon: Settings2,
+    ask: "Are there any known technical issues or artifacts in the footage?",
+    type: "chips",
+    options: ["Motion blur", "Poor lighting", "Camera shake", "Watermarks/logos", "Compression artifacts", "Noise/grain", "None known"],
+  },
+
+  // Metadata
+  {
+    id: "metadataTypes", section: "Metadata", sectionIcon: Tag,
+    ask: "What metadata is currently associated with each video file?",
+    type: "chips",
+    options: ["Date/time", "Location/GPS", "Keywords/tags", "Descriptions", "Captions", "Transcripts", "Speaker IDs", "Event labels", "None"],
+  },
+  {
+    id: "metadataStructure", section: "Metadata", sectionIcon: Tag,
+    ask: "How is that metadata structured?",
+    type: "chips-single",
+    options: ["Structured (JSON/XML)", "Semi-structured", "Free text", "Mixed", "None"],
+  },
+  {
+    id: "annotationLevel", section: "Metadata", sectionIcon: Tag,
+    ask: "How detailed are the existing annotations or tags?",
+    type: "chips-single",
+    options: ["None", "Basic tags only", "Object detection boxes", "Semantic segmentation", "Activity labels", "Sentiment labels", "Comprehensive"],
+  },
+  {
+    id: "metadataSource", section: "Metadata", sectionIcon: Tag,
+    ask: "How was the metadata generated?",
+    type: "chips",
+    options: ["Manual/human", "Semi-automated", "Fully automated", "Mixed"],
+  },
+  {
+    id: "hasTemporalAnnotation", section: "Metadata", sectionIcon: Tag,
+    ask: "Are there temporal annotations — start/end timestamps for specific events or actions within clips?",
+    type: "toggle",
+  },
+
+  // Volume
+  {
+    id: "totalHours", section: "Volume", sectionIcon: BarChart3,
+    ask: "What's the total volume of video content available?",
+    type: "chips-single",
+    options: ["Under 10h", "10–100h", "100–500h", "500–1,000h", "1,000–5,000h", "5,000h+", "Unknown"],
+  },
+  {
+    id: "contentFrequency", section: "Volume", sectionIcon: BarChart3,
+    ask: "How frequently is new content generated or added?",
+    type: "chips-single",
+    options: ["One-time archive", "Monthly", "Weekly", "Daily", "Real-time/continuous"],
+  },
+  {
+    id: "sourceVariety", section: "Volume", sectionIcon: BarChart3,
+    ask: "How varied are the recording sources and conditions?",
+    type: "chips",
+    options: ["Multiple cameras", "Different angles", "Varying lighting", "Indoor & outdoor", "Multiple locations", "Multiple operators", "Single source"],
+  },
+
+  // Legal
+  {
+    id: "ownershipType", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "Who owns the intellectual property rights to this video content?",
+    type: "chips-single",
+    options: ["Fully owned", "Partially owned", "Licensed from others", "Mixed/unclear"],
+  },
+  {
+    id: "hasThirdPartyIP", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "Is there any third-party IP embedded in the videos — background music, logos, or branded products?",
+    type: "toggle",
+  },
+  {
+    id: "hasPII", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "Does the content contain personally identifiable information (PII) — faces, license plates, or private locations?",
+    type: "toggle",
+  },
+  {
+    id: "piiManagement", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "How is that PII currently managed?",
+    type: "chips",
+    options: ["Faces blurred/anonymized", "License plates removed", "Consent obtained", "Private locations excluded", "Not yet addressed"],
+    showIf: (a) => a.hasPII === true,
+  },
+  {
+    id: "licensingIntent", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "Is your organization open to licensing this content for AI training purposes?",
+    type: "chips-single",
+    options: ["Yes, open to licensing", "Maybe, need more info", "No, not at this time"],
+  },
+  {
+    id: "licensingModel", section: "Legal & Rights", sectionIcon: Shield,
+    ask: "What licensing structures would you consider?",
+    type: "chips",
+    options: ["Non-exclusive", "Exclusive", "Perpetual", "Term-limited", "Revenue share", "Flat fee", "Open to discussion"],
+    showIf: (a) => a.licensingIntent === "Yes, open to licensing",
+  },
+
+  // Uniqueness
+  {
+    id: "exclusivity", section: "Uniqueness", sectionIcon: Sparkles,
+    ask: "How exclusive is this content — is similar footage widely available elsewhere?",
+    type: "chips-single",
+    options: ["Fully proprietary", "Mostly proprietary", "Some similar content exists", "Widely available elsewhere"],
+  },
+  {
+    id: "uniquenessFactors", section: "Uniqueness", sectionIcon: Sparkles,
+    ask: "What makes this content particularly valuable or hard to replicate?",
+    type: "chips",
+    options: ["Historical footage", "Rare events", "Specialized equipment", "Unique access/location", "Domain expertise", "Long-term archive", "High production quality", "Niche subject matter"],
+  },
+
+  // Usage
+  {
+    id: "originalPurpose", section: "Usage & Context", sectionIcon: BookOpen,
+    ask: "What was the original purpose for which this content was created?",
+    type: "chips",
+    options: ["Broadcast/media", "Corporate communications", "Training/education", "Marketing", "Research", "Security/surveillance", "Personal/consumer", "Event documentation", "Other"],
+  },
+  {
+    id: "previousAIUse", section: "Usage & Context", sectionIcon: BookOpen,
+    ask: "Has this content been used in any previous AI or machine learning projects?",
+    type: "toggle",
+  },
+  {
+    id: "hasBenchmarks", section: "Usage & Context", sectionIcon: BookOpen,
+    ask: "Are there any existing benchmarks or performance metrics associated with this content?",
+    type: "toggle",
+  },
+
+  // Final
+  {
+    id: "notes", section: "Company", sectionIcon: Building2,
+    ask: "Almost done! Is there anything else Credtent should know about your video library — context, restrictions, or special considerations?",
+    hint: "This is optional — feel free to skip.",
+    type: "textarea",
+    optional: true,
+  },
+];
+
+// ─── Section config ───────────────────────────────────────────────────────────
+
+const SECTION_ORDER = ["Company", "Content", "B-Roll", "Technical", "Metadata", "Volume", "Legal & Rights", "Uniqueness", "Usage & Context"];
+
+const SECTION_ICONS: Record<string, React.ElementType> = {
+  Company: Building2,
+  Content: Film,
+  "B-Roll": Layers,
+  Technical: Settings2,
+  Metadata: Tag,
+  Volume: BarChart3,
+  "Legal & Rights": Shield,
+  Uniqueness: Sparkles,
+  "Usage & Context": BookOpen,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatAnswer(q: Question, val: string | string[] | boolean | undefined): string {
+  if (val === undefined || val === null || val === "") return "";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (Array.isArray(val)) return val.join(", ");
+  return String(val);
+}
+
+function getVisibleQuestions(answers: Answers): Question[] {
+  return QUESTIONS.filter((q) => !q.showIf || q.showIf(answers));
+}
+
+// ─── Chip Selector ────────────────────────────────────────────────────────────
+
+function ChipSelector({
+  options, selected, multi, onSelect,
+}: {
   options: string[];
   selected: string[];
-  onChange: (val: string[]) => void;
-  multi?: boolean;
-  color?: "navy" | "orange";
-};
-
-type ToggleProps = {
-  value: boolean;
-  onChange: (v: boolean) => void;
-  label?: string;
-};
-
-type FormData = {
-  // 1. Content Characteristics
-  genres: string[];
-  clipDuration: string;
-  hasHumanSubjects: boolean;
-  demographicDiversity: string[];
-  contentType: string[];
-  emotionalTone: string[];
-  hasBRoll: boolean;
-  bRollTypes: string[];
-  bRollVolume: string;
-
-  // 2. Technical Specs
-  formats: string[];
-  resolution: string[];
-  frameRate: string;
-  compressionLevel: string;
-  audioType: string[];
-  technicalIssues: string[];
-
-  // 3. Metadata & Annotation
-  metadataTypes: string[];
-  metadataStructure: string;
-  annotationLevel: string;
-  hasTemporalAnnotation: boolean;
-  metadataSource: string[];
-
-  // 4. Volume & Diversity
-  totalHours: string;
-  contentFrequency: string;
-  sourceVariety: string[];
-
-  // 5. Legal & Rights
-  ownershipType: string;
-  hasThirdPartyIP: boolean;
-  hasPII: boolean;
-  piiManagement: string[];
-  licensingIntent: string;
-  licensingModel: string[];
-
-  // 6. Uniqueness
-  exclusivity: string;
-  uniquenessFactors: string[];
-
-  // 7. Usage & Context
-  originalPurpose: string[];
-  previousAIUse: boolean;
-  hasBenchmarks: boolean;
-
-  // Company info
-  companyName: string;
-  contactName: string;
-  contactEmail: string;
-  notes: string;
-};
-
-// ─── Chip Group ───────────────────────────────────────────────────────────────
-
-function ChipGroup({ options, selected, onChange, multi = true, color = "navy" }: ChipGroupProps) {
+  multi: boolean;
+  onSelect: (val: string[]) => void;
+}) {
   const toggle = (opt: string) => {
     if (!multi) {
-      onChange(selected[0] === opt ? [] : [opt]);
+      onSelect([opt]);
       return;
     }
     if (selected.includes(opt)) {
-      onChange(selected.filter((s) => s !== opt));
+      onSelect(selected.filter((s) => s !== opt));
     } else {
-      onChange([...selected, opt]);
+      onSelect([...selected, opt]);
     }
   };
   return (
-    <div className="flex flex-wrap gap-2 mt-2">
+    <div className="flex flex-wrap gap-2 mt-3">
       {options.map((opt) => (
         <button
           key={opt}
           type="button"
           onClick={() => toggle(opt)}
-          className={`chip-option ${selected.includes(opt) ? (color === "orange" ? "selected-orange" : "selected") : ""}`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all duration-150 ${
+            selected.includes(opt)
+              ? "bg-[oklch(0.22_0.08_264)] border-[oklch(0.22_0.08_264)] text-white"
+              : "bg-white border-gray-200 text-gray-600 hover:border-[oklch(0.22_0.08_264)] hover:text-[oklch(0.22_0.08_264)]"
+          }`}
         >
           {selected.includes(opt) && <CheckCircle2 className="w-3.5 h-3.5" />}
           {opt}
@@ -113,757 +349,434 @@ function ChipGroup({ options, selected, onChange, multi = true, color = "navy" }
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
-function Toggle({ value, onChange, label }: ToggleProps) {
+function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={value}
-      onClick={() => onChange(!value)}
-      className="flex items-center gap-3 group"
-    >
-      <div
-        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${value ? "bg-[oklch(0.22_0.08_264)]" : "bg-gray-200"}`}
-      >
-        <span
-          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${value ? "translate-x-5" : "translate-x-0"}`}
-        />
-      </div>
-      {label && (
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-      )}
-    </button>
-  );
-}
-
-// ─── Question Label ───────────────────────────────────────────────────────────
-
-function QLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
-  return (
-    <div className="mb-1">
-      <p className="text-sm font-semibold text-gray-800">{children}</p>
-      {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+    <div className="flex gap-3 mt-3">
+      {["Yes", "No"].map((label) => {
+        const isYes = label === "Yes";
+        const active = value === isYes;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onChange(isYes)}
+            className={`px-5 py-2 rounded-full border text-sm font-semibold transition-all duration-150 ${
+              active
+                ? "bg-[oklch(0.22_0.08_264)] border-[oklch(0.22_0.08_264)] text-white"
+                : "bg-white border-gray-200 text-gray-500 hover:border-gray-400"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
+// ─── Chat Bubble ──────────────────────────────────────────────────────────────
 
-function SectionHeader({
-  num,
-  icon: Icon,
-  title,
-  subtitle,
-  complete,
-}: {
-  num: number;
-  icon: React.ElementType;
-  title: string;
-  subtitle: string;
-  complete?: boolean;
-}) {
+function AssistantBubble({ text, isNew }: { text: string; isNew?: boolean }) {
   return (
-    <div className="flex items-start gap-3 mb-5 pb-4 border-b border-gray-100">
-      <div className={`section-badge ${complete ? "complete" : ""}`}>
-        {complete ? <CheckCircle2 className="w-4 h-4" /> : num}
+    <div className={`flex gap-3 items-start ${isNew ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""}`}>
+      <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+          <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
+          <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora,sans-serif">C</text>
+        </svg>
       </div>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
-          <h2 className="text-base font-bold text-[oklch(0.22_0.08_264)]">{title}</h2>
+      <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 max-w-sm shadow-sm">
+        <p className="text-sm text-gray-800 leading-relaxed">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function UserBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="bg-[oklch(0.22_0.08_264)] text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-sm">
+        <p className="text-sm leading-relaxed">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Form Summary Panel ───────────────────────────────────────────────────────
+
+function FormPanel({ answers, visibleQuestions }: { answers: Answers; visibleQuestions: Question[] }) {
+  const answeredBySection: Record<string, { q: Question; val: string }[]> = {};
+
+  SECTION_ORDER.forEach((s) => { answeredBySection[s] = []; });
+
+  visibleQuestions.forEach((q) => {
+    const val = answers[q.id];
+    const formatted = formatAnswer(q, val);
+    if (formatted && formatted !== "false") {
+      if (!answeredBySection[q.section]) answeredBySection[q.section] = [];
+      answeredBySection[q.section].push({ q, val: formatted });
+    }
+  });
+
+  const totalAnswered = visibleQuestions.filter((q) => {
+    const v = answers[q.id];
+    return v !== undefined && v !== "" && v !== false && !(Array.isArray(v) && v.length === 0);
+  }).length;
+
+  const pct = Math.round((totalAnswered / visibleQuestions.length) * 100);
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Panel header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-bold text-[oklch(0.22_0.08_264)]">Content Profile</h2>
+          <span className="text-xs text-gray-400">{pct}% complete</span>
         </div>
-        <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[oklch(0.68_0.19_41)] rounded-full transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Sections */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {SECTION_ORDER.map((section) => {
+          const Icon = SECTION_ICONS[section];
+          const items = answeredBySection[section] || [];
+          if (items.length === 0) return null;
+          return (
+            <div key={section} className="animate-in fade-in duration-300">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon className="w-3.5 h-3.5 text-[oklch(0.68_0.19_41)]" />
+                <p className="text-xs font-semibold text-[oklch(0.22_0.08_264)] uppercase tracking-wider">{section}</p>
+              </div>
+              <div className="space-y-1.5 pl-5">
+                {items.map(({ q, val }) => (
+                  <div key={q.id} className="flex gap-2 items-start">
+                    <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-400 leading-tight truncate">{q.id.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}</p>
+                      <p className="text-xs font-medium text-gray-700 leading-snug">{val}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {totalAnswered === 0 && (
+          <div className="text-center py-10">
+            <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+              <Film className="w-5 h-5 text-gray-300" />
+            </div>
+            <p className="text-xs text-gray-400">Your answers will appear here as you respond.</p>
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-// ─── Text Input ───────────────────────────────────────────────────────────────
-
-function TextInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full mt-2 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[oklch(0.22_0.08_264)] focus:border-transparent transition"
-    />
-  );
-}
-
-function TextArea({
-  value,
-  onChange,
-  placeholder,
-  rows = 3,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  rows?: number;
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full mt-2 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[oklch(0.22_0.08_264)] focus:border-transparent transition resize-none"
-    />
-  );
-}
-
-// ─── Nav Item ─────────────────────────────────────────────────────────────────
-
-function NavItem({
-  num,
-  label,
-  active,
-  complete,
-  onClick,
-}: {
-  num: number;
-  label: string;
-  active: boolean;
-  complete: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-all duration-150 ${
-        active
-          ? "bg-white text-[oklch(0.22_0.08_264)] font-semibold shadow-sm"
-          : "text-white/70 hover:text-white hover:bg-white/10"
-      }`}
-    >
-      <span
-        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
-          complete
-            ? "bg-green-400 text-white"
-            : active
-            ? "bg-[oklch(0.68_0.19_41)] text-white"
-            : "bg-white/20 text-white/60"
-        }`}
-      >
-        {complete ? <CheckCircle2 className="w-3 h-3" /> : num}
-      </span>
-      <span className="truncate">{label}</span>
-    </button>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const SECTIONS = [
-  { id: "content", label: "Content" },
-  { id: "broll", label: "B-Roll" },
-  { id: "technical", label: "Technical" },
-  { id: "metadata", label: "Metadata" },
-  { id: "volume", label: "Volume" },
-  { id: "legal", label: "Legal & Rights" },
-  { id: "uniqueness", label: "Uniqueness" },
-  { id: "usage", label: "Usage" },
-  { id: "company", label: "Company Info" },
-];
-
-const GENRE_OPTIONS = [
-  "Sports", "Educational", "Documentary", "Corporate", "Entertainment",
-  "News/Journalism", "Medical/Health", "Industrial", "Surveillance/Security",
-  "User-Generated", "Nature/Wildlife", "Travel", "Lifestyle", "Other",
-];
-
-const DURATION_OPTIONS = ["Under 30s", "30s–2min", "2–10min", "10–30min", "30min+", "Mixed"];
-
-const DEMOGRAPHIC_OPTIONS = ["Age diversity", "Gender diversity", "Ethnic diversity", "Geographic diversity", "Activity diversity", "Environment diversity"];
-
-const CONTENT_TYPE_OPTIONS = ["Static shots", "Dynamic movement", "Aerial/drone", "POV/first-person", "Time-lapse", "Slow motion", "Mixed"];
-
-const TONE_OPTIONS = ["Neutral", "Positive/Upbeat", "Negative/Tense", "Instructional", "Emotional", "Dramatic", "Comedic"];
-
-const BROLL_TYPE_OPTIONS = [
-  "Establishing shots", "Cutaway footage", "Reaction shots", "Environmental/location",
-  "Product/object close-ups", "Action sequences", "Crowd/event footage",
-  "Nature/landscape", "Urban/architectural", "Abstract/artistic",
-];
-
-const BROLL_VOLUME_OPTIONS = ["Under 10%", "10–25%", "25–50%", "50–75%", "75%+", "Unsure"];
-
-const FORMAT_OPTIONS = ["MP4", "MOV", "AVI", "MXF", "ProRes", "RAW", "Other"];
-
-const RESOLUTION_OPTIONS = ["SD (480p)", "HD (720p)", "Full HD (1080p)", "2K", "4K", "6K+", "Mixed"];
-
-const FPS_OPTIONS = ["24fps", "25fps", "30fps", "60fps", "120fps+", "Variable", "Unknown"];
-
-const COMPRESSION_OPTIONS = ["Raw/Uncompressed", "Lightly compressed", "Standard compressed", "Highly compressed", "Mixed"];
-
-const AUDIO_OPTIONS = ["Speech/Dialogue", "Music", "Ambient sound", "Sound effects", "No audio", "Mixed"];
-
-const TECHNICAL_ISSUE_OPTIONS = ["Motion blur", "Poor lighting", "Camera shake", "Watermarks/logos", "Compression artifacts", "Noise/grain", "None known"];
-
-const METADATA_TYPE_OPTIONS = ["Date/time", "Location/GPS", "Keywords/tags", "Descriptions", "Captions", "Transcripts", "Speaker IDs", "Event labels", "None"];
-
-const METADATA_STRUCTURE_OPTIONS = ["Structured (JSON/XML)", "Semi-structured", "Free text", "Mixed", "None"];
-
-const ANNOTATION_LEVEL_OPTIONS = ["None", "Basic tags only", "Object detection boxes", "Semantic segmentation", "Activity labels", "Sentiment labels", "Comprehensive"];
-
-const METADATA_SOURCE_OPTIONS = ["Manual/human", "Semi-automated", "Fully automated", "Mixed"];
-
-const TOTAL_HOURS_OPTIONS = ["Under 10h", "10–100h", "100–500h", "500–1,000h", "1,000–5,000h", "5,000h+", "Unknown"];
-
-const FREQUENCY_OPTIONS = ["One-time archive", "Monthly", "Weekly", "Daily", "Real-time/continuous"];
-
-const SOURCE_VARIETY_OPTIONS = ["Multiple cameras", "Different angles", "Varying lighting", "Indoor & outdoor", "Multiple locations", "Multiple operators", "Single source"];
-
-const OWNERSHIP_OPTIONS = ["Fully owned", "Partially owned", "Licensed from others", "Mixed/unclear"];
-
-const PII_MANAGEMENT_OPTIONS = ["Faces blurred/anonymized", "License plates removed", "Consent obtained", "Private locations excluded", "Not yet addressed"];
-
-const LICENSING_INTENT_OPTIONS = ["Yes, open to licensing", "Maybe, need more info", "No, not at this time"];
-
-const LICENSING_MODEL_OPTIONS = ["Non-exclusive", "Exclusive", "Perpetual", "Term-limited", "Revenue share", "Flat fee", "Open to discussion"];
-
-const EXCLUSIVITY_OPTIONS = ["Fully proprietary", "Mostly proprietary", "Some similar content exists", "Widely available elsewhere"];
-
-const UNIQUENESS_FACTOR_OPTIONS = [
-  "Historical footage", "Rare events", "Specialized equipment", "Unique access/location",
-  "Domain expertise", "Long-term archive", "High production quality", "Niche subject matter",
-];
-
-const ORIGINAL_PURPOSE_OPTIONS = [
-  "Broadcast/media", "Corporate communications", "Training/education", "Marketing",
-  "Research", "Security/surveillance", "Personal/consumer", "Event documentation", "Other",
-];
-
 export default function Home() {
-  const [activeSection, setActiveSection] = useState("content");
+  const [answers, setAnswers] = useState<Answers>({});
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [chatHistory, setChatHistory] = useState<{ role: "assistant" | "user"; text: string }[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [pendingChips, setPendingChips] = useState<string[]>([]);
+  const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
-  const [form, setForm] = useState<FormData>({
-    genres: [],
-    clipDuration: "",
-    hasHumanSubjects: false,
-    demographicDiversity: [],
-    contentType: [],
-    emotionalTone: [],
-    hasBRoll: false,
-    bRollTypes: [],
-    bRollVolume: "",
-    formats: [],
-    resolution: [],
-    frameRate: "",
-    compressionLevel: "",
-    audioType: [],
-    technicalIssues: [],
-    metadataTypes: [],
-    metadataStructure: "",
-    annotationLevel: "",
-    hasTemporalAnnotation: false,
-    metadataSource: [],
-    totalHours: "",
-    contentFrequency: "",
-    sourceVariety: [],
-    ownershipType: "",
-    hasThirdPartyIP: false,
-    hasPII: false,
-    piiManagement: [],
-    licensingIntent: "",
-    licensingModel: [],
-    exclusivity: "",
-    uniquenessFactors: [],
-    originalPurpose: [],
-    previousAIUse: false,
-    hasBenchmarks: false,
-    companyName: "",
-    contactName: "",
-    contactEmail: "",
-    notes: "",
-  });
+  const visibleQuestions = getVisibleQuestions(answers);
+  const currentQ = visibleQuestions[currentQIndex];
 
-  const update = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // Scroll spy
+  // Scroll chat to bottom
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: "-30% 0px -60% 0px" }
-    );
-    Object.values(sectionRefs.current).forEach((el) => {
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, isTyping]);
+
+  // Ask first question on mount
+  useEffect(() => {
+    if (chatHistory.length === 0 && visibleQuestions.length > 0) {
+      setTimeout(() => {
+        setChatHistory([
+          { role: "assistant", text: "Hi! I'm the Credtent content assessment assistant. I'll ask you a series of questions about your video library, and we'll build your content profile together. It only takes a few minutes." },
+        ]);
+        setTimeout(() => {
+          setChatHistory((prev) => [...prev, { role: "assistant", text: visibleQuestions[0].ask }]);
+        }, 800);
+      }, 300);
+    }
   }, []);
 
-  const scrollTo = (id: string) => {
-    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const advanceToNext = useCallback((newAnswers: Answers, fromIndex: number) => {
+    const updated = getVisibleQuestions(newAnswers);
+    const next = updated[fromIndex + 1];
+    if (!next) {
+      setSubmitted(true);
+      setChatHistory((prev) => [
+        ...prev,
+        { role: "assistant", text: "That's everything! Your content profile is complete. Credtent will review your responses and follow up with a valuation estimate. Thank you!" },
+      ]);
+      return;
+    }
+    setIsTyping(true);
+    setTimeout(() => {
+      setIsTyping(false);
+      setChatHistory((prev) => [...prev, { role: "assistant", text: next.ask }]);
+      setCurrentQIndex(fromIndex + 1);
+      setPendingChips([]);
+      setPendingToggle(null);
+    }, 600);
+  }, []);
+
+  const submitAnswer = useCallback((q: Question, value: string | string[] | boolean) => {
+    const newAnswers = { ...answers, [q.id]: value };
+    setAnswers(newAnswers);
+
+    const display = formatAnswer(q, value);
+    if (display && display !== "false") {
+      setChatHistory((prev) => [...prev, { role: "user", text: display }]);
+    } else if (typeof value === "boolean" && !value) {
+      setChatHistory((prev) => [...prev, { role: "user", text: "No" }]);
+    }
+
+    const newVisible = getVisibleQuestions(newAnswers);
+    const newIndex = newVisible.findIndex((vq) => vq.id === q.id);
+    advanceToNext(newAnswers, newIndex);
+  }, [answers, advanceToNext]);
+
+  const handleSend = () => {
+    if (!currentQ || submitted) return;
+
+    if (currentQ.type === "chips" || currentQ.type === "chips-single") {
+      if (pendingChips.length === 0 && !currentQ.optional) return;
+      submitAnswer(currentQ, pendingChips);
+    } else if (currentQ.type === "toggle") {
+      if (pendingToggle === null) return;
+      submitAnswer(currentQ, pendingToggle);
+    } else {
+      const val = inputText.trim();
+      if (!val && !currentQ.optional) return;
+      submitAnswer(currentQ, val);
+      setInputText("");
+    }
   };
 
-  // Compute section completeness (simple heuristic)
-  useEffect(() => {
-    const completed = new Set<string>();
-    if (form.genres.length > 0 && form.clipDuration) completed.add("content");
-    if (form.hasBRoll && form.bRollTypes.length > 0) completed.add("broll");
-    if (!form.hasBRoll) completed.add("broll");
-    if (form.formats.length > 0 && form.resolution.length > 0) completed.add("technical");
-    if (form.metadataTypes.length > 0) completed.add("metadata");
-    if (form.totalHours) completed.add("volume");
-    if (form.ownershipType && form.licensingIntent) completed.add("legal");
-    if (form.exclusivity) completed.add("uniqueness");
-    if (form.originalPurpose.length > 0) completed.add("usage");
-    if (form.companyName && form.contactEmail) completed.add("company");
-    setCompletedSections(completed);
-  }, [form]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-[oklch(0.98_0.003_264)] flex items-center justify-center p-6">
-        <div className="max-w-lg w-full bg-white rounded-2xl shadow-lg p-10 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8 text-green-500" />
-          </div>
-          <h2 className="text-2xl font-bold text-[oklch(0.22_0.08_264)] mb-2">Assessment Submitted</h2>
-          <p className="text-gray-500 text-sm mb-6">
-            Thank you, <strong>{form.contactName || form.companyName}</strong>. Credtent will review your video content profile and be in touch with a valuation estimate.
-          </p>
-          <div className="bg-[oklch(0.96_0.04_41)] rounded-lg px-4 py-3 text-sm text-[oklch(0.68_0.19_41)] font-medium mb-6">
-            {completedSections.size} of {SECTIONS.length} sections completed
-          </div>
-          <button
-            type="button"
-            onClick={() => setSubmitted(false)}
-            className="text-sm text-[oklch(0.22_0.08_264)] underline underline-offset-2"
-          >
-            Edit responses
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleSkip = () => {
+    if (!currentQ?.optional) return;
+    const newAnswers = { ...answers };
+    const newVisible = getVisibleQuestions(newAnswers);
+    const idx = newVisible.findIndex((vq) => vq.id === currentQ.id);
+    setChatHistory((prev) => [...prev, { role: "user", text: "Skipped" }]);
+    advanceToNext(newAnswers, idx);
+  };
+
+  const handleReset = () => {
+    setAnswers({});
+    setCurrentQIndex(0);
+    setChatHistory([]);
+    setPendingChips([]);
+    setPendingToggle(null);
+    setInputText("");
+    setSubmitted(false);
+    setTimeout(() => {
+      setChatHistory([
+        { role: "assistant", text: "Hi! I'm the Credtent content assessment assistant. I'll ask you a series of questions about your video library, and we'll build your content profile together. It only takes a few minutes." },
+      ]);
+      setTimeout(() => {
+        const vq = getVisibleQuestions({});
+        setChatHistory((prev) => [...prev, { role: "assistant", text: vq[0].ask }]);
+      }, 800);
+    }, 300);
+  };
+
+  const canSend = () => {
+    if (!currentQ || submitted) return false;
+    if (currentQ.optional) return true;
+    if (currentQ.type === "chips" || currentQ.type === "chips-single") return pendingChips.length > 0;
+    if (currentQ.type === "toggle") return pendingToggle !== null;
+    return inputText.trim().length > 0;
+  };
 
   return (
-    <div className="min-h-screen bg-[oklch(0.98_0.003_264)]">
+    <div className="h-screen flex flex-col bg-[oklch(0.98_0.003_264)] overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[oklch(0.22_0.08_264)] border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            {/* Credtent shield logo SVG */}
-            <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
-              <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="url(#shieldGrad)" opacity="0.3" />
-              <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora, sans-serif">C</text>
-              <defs>
-                <linearGradient id="shieldGrad" x1="20" y1="3" x2="20" y2="38" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="white" stopOpacity="0.3" />
-                  <stop offset="1" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <span className="text-white font-bold text-base tracking-tight">Credtent</span>
-            <span className="hidden sm:inline text-white/30 text-sm mx-1">|</span>
-            <span className="hidden sm:inline text-white/60 text-sm">Video Content Valuation</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-white/50 hidden sm:block">
-              {completedSections.size}/{SECTIONS.length} sections
-            </div>
-            <div className="w-24 h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[oklch(0.68_0.19_41)] rounded-full transition-all duration-500"
-                style={{ width: `${(completedSections.size / SECTIONS.length) * 100}%` }}
-              />
-            </div>
-          </div>
+      <header className="flex-shrink-0 bg-[oklch(0.22_0.08_264)] h-14 flex items-center px-4 sm:px-6 justify-between z-10">
+        <div className="flex items-center gap-2.5">
+          <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+            <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
+            <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora,sans-serif">C</text>
+          </svg>
+          <span className="text-white font-bold text-base tracking-tight">Credtent</span>
+          <span className="text-white/30 text-sm mx-1 hidden sm:inline">|</span>
+          <span className="text-white/60 text-sm hidden sm:inline">Video Content Valuation</span>
         </div>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="flex items-center gap-1.5 text-white/50 hover:text-white/80 text-xs transition-colors"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Start over</span>
+        </button>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-8">
-        {/* Sidebar Nav */}
-        <aside className="hidden lg:flex flex-col w-52 flex-shrink-0">
-          <div className="sticky top-20 bg-[oklch(0.22_0.08_264)] rounded-xl p-3 shadow-lg">
-            <p className="text-white/40 text-xs uppercase tracking-widest px-3 mb-2 font-semibold">Sections</p>
-            <nav className="flex flex-col gap-0.5">
-              {SECTIONS.map((s, i) => (
-                <NavItem
-                  key={s.id}
-                  num={i + 1}
-                  label={s.label}
-                  active={activeSection === s.id}
-                  complete={completedSections.has(s.id)}
-                  onClick={() => scrollTo(s.id)}
-                />
-              ))}
-            </nav>
-            <div className="mt-4 pt-3 border-t border-white/10 px-3">
-              <p className="text-white/40 text-xs">
-                {completedSections.size} of {SECTIONS.length} complete
-              </p>
-            </div>
-          </div>
-        </aside>
-
-        {/* Form */}
-        <main className="flex-1 min-w-0">
-          {/* Intro */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-extrabold text-[oklch(0.22_0.08_264)] leading-tight">
-              Video Content <span className="text-[oklch(0.68_0.19_41)]">Valuation</span> Assessment
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Help Credtent understand your video library so we can assess its potential value for ethical AI training licensing.
-            </p>
+      {/* Body */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat Panel */}
+        <div className="flex flex-col flex-1 min-w-0 border-r border-gray-200">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-4">
+            {chatHistory.map((msg, i) =>
+              msg.role === "assistant"
+                ? <AssistantBubble key={i} text={msg.text} isNew={i === chatHistory.length - 1} />
+                : <UserBubble key={i} text={msg.text} />
+            )}
+            {isTyping && (
+              <div className="flex gap-3 items-start animate-in fade-in duration-200">
+                <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+                    <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
+                    <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora,sans-serif">C</text>
+                  </svg>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                  <div className="flex gap-1 items-center h-4">
+                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Input Area */}
+          {!submitted && currentQ && (
+            <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 sm:px-6 py-4">
+              {/* Chip input */}
+              {(currentQ.type === "chips" || currentQ.type === "chips-single") && (
+                <div className="mb-3">
+                  <ChipSelector
+                    options={currentQ.options || []}
+                    selected={pendingChips}
+                    multi={currentQ.type === "chips"}
+                    onSelect={setPendingChips}
+                  />
+                </div>
+              )}
 
-            {/* ── Section 1: Content Characteristics ── */}
-            <div id="content" ref={(el) => { sectionRefs.current["content"] = el; }} className="form-section">
-              <SectionHeader
-                num={1}
-                icon={Film}
-                title="Content Characteristics"
-                subtitle="What kind of video content do you have?"
-                complete={completedSections.has("content")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>Primary genre(s) or subject matter</QLabel>
-                  <ChipGroup options={GENRE_OPTIONS} selected={form.genres} onChange={(v) => update("genres", v)} />
+              {/* Toggle input */}
+              {currentQ.type === "toggle" && (
+                <div className="mb-3">
+                  <Toggle
+                    value={pendingToggle ?? false}
+                    onChange={(v) => setPendingToggle(v)}
+                  />
                 </div>
-                <div>
-                  <QLabel>Typical clip duration</QLabel>
-                  <ChipGroup options={DURATION_OPTIONS} selected={form.clipDuration ? [form.clipDuration] : []} onChange={(v) => update("clipDuration", v[0] || "")} multi={false} />
-                </div>
-                <div>
-                  <QLabel>Shot style</QLabel>
-                  <ChipGroup options={CONTENT_TYPE_OPTIONS} selected={form.contentType} onChange={(v) => update("contentType", v)} />
-                </div>
-                <div>
-                  <QLabel>Emotional tone</QLabel>
-                  <ChipGroup options={TONE_OPTIONS} selected={form.emotionalTone} onChange={(v) => update("emotionalTone", v)} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Features human subjects?</p>
-                    <p className="text-xs text-gray-400">Faces, people, activities</p>
-                  </div>
-                  <Toggle value={form.hasHumanSubjects} onChange={(v) => update("hasHumanSubjects", v)} />
-                </div>
-                {form.hasHumanSubjects && (
-                  <div>
-                    <QLabel hint="Select all that apply">Demographic diversity represented</QLabel>
-                    <ChipGroup options={DEMOGRAPHIC_OPTIONS} selected={form.demographicDiversity} onChange={(v) => update("demographicDiversity", v)} />
-                  </div>
-                )}
-              </div>
-            </div>
+              )}
 
-            {/* ── Section 2: B-Roll ── */}
-            <div id="broll" ref={(el) => { sectionRefs.current["broll"] = el; }} className="form-section">
-              <SectionHeader
-                num={2}
-                icon={Layers}
-                title="B-Roll Content"
-                subtitle="Supporting and supplementary footage details"
-                complete={completedSections.has("broll")}
-              />
-              <div className="space-y-5">
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Does the library include B-roll footage?</p>
-                    <p className="text-xs text-gray-400">Cutaways, establishing shots, supplementary clips</p>
-                  </div>
-                  <Toggle value={form.hasBRoll} onChange={(v) => update("hasBRoll", v)} />
+              {/* Text / email input */}
+              {(currentQ.type === "text" || currentQ.type === "email") && (
+                <div className="flex gap-2 mb-3">
+                  <input
+                    ref={inputRef as React.RefObject<HTMLInputElement>}
+                    type={currentQ.type}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={currentQ.hint || "Type your answer…"}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[oklch(0.22_0.08_264)] focus:border-transparent transition"
+                    autoFocus
+                  />
                 </div>
-                {form.hasBRoll && (
-                  <>
-                    <div>
-                      <QLabel>Types of B-roll included</QLabel>
-                      <ChipGroup options={BROLL_TYPE_OPTIONS} selected={form.bRollTypes} onChange={(v) => update("bRollTypes", v)} />
-                    </div>
-                    <div>
-                      <QLabel>Approximate proportion of total library that is B-roll</QLabel>
-                      <ChipGroup options={BROLL_VOLUME_OPTIONS} selected={form.bRollVolume ? [form.bRollVolume] : []} onChange={(v) => update("bRollVolume", v[0] || "")} multi={false} color="orange" />
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+              )}
 
-            {/* ── Section 3: Technical Specs ── */}
-            <div id="technical" ref={(el) => { sectionRefs.current["technical"] = el; }} className="form-section">
-              <SectionHeader
-                num={3}
-                icon={Settings2}
-                title="Technical Specifications"
-                subtitle="File formats, resolution, and quality attributes"
-                complete={completedSections.has("technical")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>Video formats / codecs</QLabel>
-                  <ChipGroup options={FORMAT_OPTIONS} selected={form.formats} onChange={(v) => update("formats", v)} />
+              {/* Textarea */}
+              {currentQ.type === "textarea" && (
+                <div className="mb-3">
+                  <textarea
+                    ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={currentQ.hint || "Type your answer…"}
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[oklch(0.22_0.08_264)] focus:border-transparent transition resize-none"
+                    autoFocus
+                  />
                 </div>
-                <div>
-                  <QLabel>Resolution</QLabel>
-                  <ChipGroup options={RESOLUTION_OPTIONS} selected={form.resolution} onChange={(v) => update("resolution", v)} />
+              )}
+
+              {/* Send row */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-gray-400">
+                  {currentQIndex + 1} of {visibleQuestions.length} questions
+                  {currentQ.type === "chips" && pendingChips.length === 0 && (
+                    <span className="ml-1 text-gray-300">— select at least one</span>
+                  )}
                 </div>
-                <div>
-                  <QLabel>Frame rate</QLabel>
-                  <ChipGroup options={FPS_OPTIONS} selected={form.frameRate ? [form.frameRate] : []} onChange={(v) => update("frameRate", v[0] || "")} multi={false} />
-                </div>
-                <div>
-                  <QLabel>Compression level</QLabel>
-                  <ChipGroup options={COMPRESSION_OPTIONS} selected={form.compressionLevel ? [form.compressionLevel] : []} onChange={(v) => update("compressionLevel", v[0] || "")} multi={false} color="orange" />
-                </div>
-                <div>
-                  <QLabel>Audio content</QLabel>
-                  <ChipGroup options={AUDIO_OPTIONS} selected={form.audioType} onChange={(v) => update("audioType", v)} />
-                </div>
-                <div>
-                  <QLabel hint="Select any known issues">Known technical issues or artifacts</QLabel>
-                  <ChipGroup options={TECHNICAL_ISSUE_OPTIONS} selected={form.technicalIssues} onChange={(v) => update("technicalIssues", v)} />
+                <div className="flex items-center gap-2">
+                  {currentQ.optional && (
+                    <button
+                      type="button"
+                      onClick={handleSkip}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-3 py-1.5"
+                    >
+                      Skip
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!canSend()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[oklch(0.68_0.19_41)] hover:bg-[oklch(0.62_0.19_41)] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all duration-150 active:scale-95"
+                  >
+                    {currentQ.type === "chips" || currentQ.type === "chips-single" ? "Confirm" : "Send"}
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* ── Section 4: Metadata & Annotation ── */}
-            <div id="metadata" ref={(el) => { sectionRefs.current["metadata"] = el; }} className="form-section">
-              <SectionHeader
-                num={4}
-                icon={Tag}
-                title="Metadata & Annotation"
-                subtitle="Existing labels, tags, and structured data"
-                complete={completedSections.has("metadata")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>What metadata exists per video?</QLabel>
-                  <ChipGroup options={METADATA_TYPE_OPTIONS} selected={form.metadataTypes} onChange={(v) => update("metadataTypes", v)} />
-                </div>
-                <div>
-                  <QLabel>Metadata structure</QLabel>
-                  <ChipGroup options={METADATA_STRUCTURE_OPTIONS} selected={form.metadataStructure ? [form.metadataStructure] : []} onChange={(v) => update("metadataStructure", v[0] || "")} multi={false} />
-                </div>
-                <div>
-                  <QLabel>Annotation depth</QLabel>
-                  <ChipGroup options={ANNOTATION_LEVEL_OPTIONS} selected={form.annotationLevel ? [form.annotationLevel] : []} onChange={(v) => update("annotationLevel", v[0] || "")} multi={false} color="orange" />
-                </div>
-                <div>
-                  <QLabel>How was metadata generated?</QLabel>
-                  <ChipGroup options={METADATA_SOURCE_OPTIONS} selected={form.metadataSource} onChange={(v) => update("metadataSource", v)} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Temporal annotations available?</p>
-                    <p className="text-xs text-gray-400">Start/end timestamps for events or actions</p>
-                  </div>
-                  <Toggle value={form.hasTemporalAnnotation} onChange={(v) => update("hasTemporalAnnotation", v)} />
-                </div>
+          {submitted && (
+            <div className="flex-shrink-0 border-t border-gray-100 bg-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-sm font-semibold">Assessment complete</span>
               </div>
-            </div>
-
-            {/* ── Section 5: Volume & Diversity ── */}
-            <div id="volume" ref={(el) => { sectionRefs.current["volume"] = el; }} className="form-section">
-              <SectionHeader
-                num={5}
-                icon={BarChart3}
-                title="Volume & Diversity"
-                subtitle="Scale and variety of your content library"
-                complete={completedSections.has("volume")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>Total volume of video content</QLabel>
-                  <ChipGroup options={TOTAL_HOURS_OPTIONS} selected={form.totalHours ? [form.totalHours] : []} onChange={(v) => update("totalHours", v[0] || "")} multi={false} color="orange" />
-                </div>
-                <div>
-                  <QLabel>How frequently is new content added?</QLabel>
-                  <ChipGroup options={FREQUENCY_OPTIONS} selected={form.contentFrequency ? [form.contentFrequency] : []} onChange={(v) => update("contentFrequency", v[0] || "")} multi={false} />
-                </div>
-                <div>
-                  <QLabel hint="Select all that apply">Source and recording variety</QLabel>
-                  <ChipGroup options={SOURCE_VARIETY_OPTIONS} selected={form.sourceVariety} onChange={(v) => update("sourceVariety", v)} />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 6: Legal & Rights ── */}
-            <div id="legal" ref={(el) => { sectionRefs.current["legal"] = el; }} className="form-section">
-              <SectionHeader
-                num={6}
-                icon={Shield}
-                title="Legal & Rights"
-                subtitle="Ownership, privacy, and licensing considerations"
-                complete={completedSections.has("legal")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>Ownership of intellectual property</QLabel>
-                  <ChipGroup options={OWNERSHIP_OPTIONS} selected={form.ownershipType ? [form.ownershipType] : []} onChange={(v) => update("ownershipType", v[0] || "")} multi={false} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Third-party IP embedded?</p>
-                    <p className="text-xs text-gray-400">Background music, logos, branded products</p>
-                  </div>
-                  <Toggle value={form.hasThirdPartyIP} onChange={(v) => update("hasThirdPartyIP", v)} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Personal identifiable information (PII) present?</p>
-                    <p className="text-xs text-gray-400">Faces, license plates, private locations</p>
-                  </div>
-                  <Toggle value={form.hasPII} onChange={(v) => update("hasPII", v)} />
-                </div>
-                {form.hasPII && (
-                  <div>
-                    <QLabel>How is PII managed?</QLabel>
-                    <ChipGroup options={PII_MANAGEMENT_OPTIONS} selected={form.piiManagement} onChange={(v) => update("piiManagement", v)} />
-                  </div>
-                )}
-                <div>
-                  <QLabel>Open to licensing for AI training?</QLabel>
-                  <ChipGroup options={LICENSING_INTENT_OPTIONS} selected={form.licensingIntent ? [form.licensingIntent] : []} onChange={(v) => update("licensingIntent", v[0] || "")} multi={false} color="orange" />
-                </div>
-                {form.licensingIntent === "Yes, open to licensing" && (
-                  <div>
-                    <QLabel hint="Select preferred structures">Preferred licensing model</QLabel>
-                    <ChipGroup options={LICENSING_MODEL_OPTIONS} selected={form.licensingModel} onChange={(v) => update("licensingModel", v)} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Section 7: Uniqueness ── */}
-            <div id="uniqueness" ref={(el) => { sectionRefs.current["uniqueness"] = el; }} className="form-section">
-              <SectionHeader
-                num={7}
-                icon={Sparkles}
-                title="Uniqueness & Proprietary Value"
-                subtitle="What makes this content rare or hard to replicate?"
-                complete={completedSections.has("uniqueness")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>How exclusive is this content?</QLabel>
-                  <ChipGroup options={EXCLUSIVITY_OPTIONS} selected={form.exclusivity ? [form.exclusivity] : []} onChange={(v) => update("exclusivity", v[0] || "")} multi={false} color="orange" />
-                </div>
-                <div>
-                  <QLabel hint="Select all that apply">Unique value factors</QLabel>
-                  <ChipGroup options={UNIQUENESS_FACTOR_OPTIONS} selected={form.uniquenessFactors} onChange={(v) => update("uniquenessFactors", v)} />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 8: Usage & Context ── */}
-            <div id="usage" ref={(el) => { sectionRefs.current["usage"] = el; }} className="form-section">
-              <SectionHeader
-                num={8}
-                icon={BookOpen}
-                title="Usage & Context"
-                subtitle="Original purpose and prior AI use"
-                complete={completedSections.has("usage")}
-              />
-              <div className="space-y-5">
-                <div>
-                  <QLabel>Original purpose of the content</QLabel>
-                  <ChipGroup options={ORIGINAL_PURPOSE_OPTIONS} selected={form.originalPurpose} onChange={(v) => update("originalPurpose", v)} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Previously used in AI/ML projects?</p>
-                    <p className="text-xs text-gray-400">Internal or external training use</p>
-                  </div>
-                  <Toggle value={form.previousAIUse} onChange={(v) => update("previousAIUse", v)} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Existing benchmarks or performance metrics?</p>
-                    <p className="text-xs text-gray-400">Evaluation datasets or test results</p>
-                  </div>
-                  <Toggle value={form.hasBenchmarks} onChange={(v) => update("hasBenchmarks", v)} />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 9: Company Info ── */}
-            <div id="company" ref={(el) => { sectionRefs.current["company"] = el; }} className="form-section">
-              <SectionHeader
-                num={9}
-                icon={ChevronRight}
-                title="Company Information"
-                subtitle="Who should Credtent follow up with?"
-                complete={completedSections.has("company")}
-              />
-              <div className="space-y-4">
-                <div>
-                  <QLabel>Company name</QLabel>
-                  <TextInput value={form.companyName} onChange={(v) => update("companyName", v)} placeholder="Acme Media Corp" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <QLabel>Contact name</QLabel>
-                    <TextInput value={form.contactName} onChange={(v) => update("contactName", v)} placeholder="Jane Smith" />
-                  </div>
-                  <div>
-                    <QLabel>Contact email</QLabel>
-                    <input
-                      type="email"
-                      value={form.contactEmail}
-                      onChange={(e) => update("contactEmail", e.target.value)}
-                      placeholder="jane@acmemedia.com"
-                      className="w-full mt-2 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[oklch(0.22_0.08_264)] focus:border-transparent transition"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <QLabel hint="Optional">Additional notes or context</QLabel>
-                  <TextArea value={form.notes} onChange={(v) => update("notes", v)} placeholder="Anything else Credtent should know about your video library..." rows={3} />
-                </div>
-              </div>
-            </div>
-
-            {/* Submit */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-8">
-              <p className="text-xs text-gray-400">
-                {completedSections.size} of {SECTIONS.length} sections completed &mdash; you can submit at any time
-              </p>
               <button
-                type="submit"
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-[oklch(0.68_0.19_41)] hover:bg-[oklch(0.62_0.19_41)] text-white font-semibold text-sm shadow-md transition-all duration-150 active:scale-95"
+                type="button"
+                onClick={handleReset}
+                className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
               >
-                Submit Assessment
-                <ChevronRight className="w-4 h-4" />
+                Start a new assessment
               </button>
             </div>
-          </form>
-        </main>
+          )}
+        </div>
+
+        {/* Form Summary Panel — hidden on mobile */}
+        <aside className="hidden md:flex flex-col w-80 lg:w-96 flex-shrink-0 bg-white overflow-hidden">
+          <FormPanel answers={answers} visibleQuestions={visibleQuestions} />
+        </aside>
       </div>
     </div>
   );
