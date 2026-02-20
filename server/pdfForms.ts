@@ -122,6 +122,40 @@ const CONTENT_TYPE_FORMS: Record<ContentTypeKey, { label: string; subtitle: stri
         ],
       },
       {
+        title: "Broadcast Rights",
+        questions: [
+          { label: "Was this content originally broadcast under a network or distributor license?", type: "radio-list", options: ["Yes", "No", "Not sure"] },
+          {
+            label: "Broadcast rights status (if originally licensed to a network/distributor)",
+            type: "radio-list",
+            options: ["Rights fully reverted to us", "Rights partially reverted", "Rights still held by network / distributor", "Rights status unclear", "Never licensed to a network", "Not sure"],
+          },
+          { label: "Original network or distributor name (e.g. CBS, NBC, HBO)", type: "text" },
+          { label: "Approximate year rights reverted (if applicable)", type: "text" },
+        ],
+      },
+      {
+        title: "Digitization Status",
+        questions: [
+          {
+            label: "Current digitization status",
+            type: "radio-list",
+            options: ["Fully digitized", "Mostly digitized", "Partially digitized", "Not yet digitized (physical media only)", "Mixed — some digital, some physical", "Not sure"],
+          },
+          {
+            label: "Physical media formats (for undigitized content)",
+            type: "checkbox-list",
+            options: ["16mm film", "35mm film", "2-inch videotape", "1-inch videotape", "Betacam / Betamax", "VHS", "U-matic", "LaserDisc", "Other tape format", "Not applicable"],
+          },
+          {
+            label: "Digitization output quality (for digitized content)",
+            type: "radio-list",
+            options: ["SD (480p or below)", "HD (720p)", "Full HD (1080p)", "2K scan", "4K scan", "Mixed quality", "Not sure", "Not applicable"],
+          },
+          { label: "Digitization notes (vendor, timeline, condition of source material)", type: "multiline" },
+        ],
+      },
+      {
         title: "Rights & Licensing",
         questions: [
           { label: "Who owns the intellectual property rights?", type: "radio-list", options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed / unclear", "Not sure"] },

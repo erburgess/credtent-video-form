@@ -235,6 +235,48 @@ const VIDEO_QUESTIONS: Question[] = [
     optional: true,
     options: ["Motion blur", "Poor lighting", "Camera shake", "Watermarks/burn-ins", "Compression artifacts", "Film grain/damage", "Tape degradation", "None known", "Not sure"],
   },
+  {
+    id: "broadcastRightsOrigin",
+    ask: "Was this content originally broadcast under a network or distributor license — e.g. a major TV network, cable channel, or streaming platform?",
+    type: "toggle",
+  },
+  {
+    id: "broadcastRightsDetail",
+    ask: "Which network or distributor originally held the broadcast rights, and have those rights since reverted to you?",
+    type: "chips",
+    optional: true,
+    hint: "e.g. 'CBS — rights reverted in 1990' or 'NBC — rights status unclear'",
+    options: ["Rights fully reverted to us", "Rights partially reverted", "Rights still held by network/distributor", "Rights status unclear", "Never licensed to a network", "Not sure"],
+    showIf: (a) => a.broadcastRightsOrigin === true,
+  },
+  {
+    id: "digitizationStatus",
+    ask: "What is the current digitization status of the content?",
+    type: "chips-single",
+    options: ["Fully digitized", "Mostly digitized", "Partially digitized", "Not yet digitized (physical media only)", "Mixed — some digital, some physical", "Not sure"],
+  },
+  {
+    id: "physicalMediaTypes",
+    ask: "What physical media formats does the undigitized content exist on?",
+    type: "chips",
+    optional: true,
+    options: ["16mm film", "35mm film", "2-inch videotape", "1-inch videotape", "Betacam/Betamax", "VHS", "U-matic", "LaserDisc", "Other tape format", "Not applicable"],
+    showIf: (a) => {
+      const s = a.digitizationStatus as string;
+      return s === "Not yet digitized (physical media only)" || s === "Partially digitized" || s === "Mixed — some digital, some physical";
+    },
+  },
+  {
+    id: "digitizationQuality",
+    ask: "For content that has been digitized, what is the typical output quality?",
+    type: "chips-single",
+    optional: true,
+    options: ["SD (480p or below)", "HD (720p)", "Full HD (1080p)", "2K scan", "4K scan", "Mixed quality", "Not sure", "Not applicable"],
+    showIf: (a) => {
+      const s = a.digitizationStatus as string;
+      return s !== "Not yet digitized (physical media only)";
+    },
+  },
 ];
 
 // ── Written content questions ─────────────────────────────────────────────────

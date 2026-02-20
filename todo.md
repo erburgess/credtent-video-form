@@ -27,3 +27,5 @@
 - [x] Server-side PDF generation endpoint for each content type
 - [x] Credtent-branded PDF questionnaire layout (logo, navy/orange, Sora font)
 - [x] "Download Form" dropdown in masthead with all 9 content types
+- [x] Broadcast rights question in video section (network license, reversion status)
+- [x] Digitization status question in video section (physical media vs. digital, quality)
