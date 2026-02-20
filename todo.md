@@ -24,3 +24,6 @@
 - [ ] Broadcast rights question for archival TV content
 - [ ] Digitization status question for archival video
 - [ ] Allow multiple "Other / Custom" entries with distinct names
+- [x] Server-side PDF generation endpoint for each content type
+- [x] Credtent-branded PDF questionnaire layout (logo, navy/orange, Sora font)
+- [x] "Download Form" dropdown in masthead with all 9 content types

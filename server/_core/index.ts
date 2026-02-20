@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { generateContentFormPDF } from "../pdfForms";
+import type { ContentTypeKey } from "../pdfForms";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +37,37 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // PDF form download endpoint
+  app.get("/api/forms/download/:type", async (req, res) => {
+    try {
+      const type = req.params.type as ContentTypeKey;
+      const validTypes: ContentTypeKey[] = ["video", "written", "audio", "images", "social", "design", "games", "film", "other"];
+      if (!validTypes.includes(type)) {
+        res.status(400).json({ error: "Invalid content type" });
+        return;
+      }
+      const pdf = await generateContentFormPDF(type);
+      const labels: Record<ContentTypeKey, string> = {
+        video: "Video-Content",
+        written: "Written-Works",
+        audio: "Audio-Podcasts",
+        images: "Images-Photography",
+        social: "Social-Media",
+        design: "Design-Illustration",
+        games: "Games-Interactive",
+        film: "Film-Cinema",
+        other: "Other-Custom",
+      };
+      const filename = `Credtent-Content-Valuation-${labels[type]}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(pdf);
+    } catch (err) {
+      console.error("[PDF] Generation error:", err);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

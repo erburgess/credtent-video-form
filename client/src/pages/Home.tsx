@@ -12,7 +12,7 @@ import { trpc } from "@/lib/trpc";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
-  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles,
+  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles, Download, ChevronDown,
 } from "lucide-react";
 
 // ─── Content Types ────────────────────────────────────────────────────────────
@@ -890,6 +890,75 @@ function ProfilePanel({ state }: { state: AppState }) {
   );
 }
 
+// ─── Download Form Dropdown ─────────────────────────────────────────────────
+
+const DOWNLOAD_OPTIONS: { type: string; label: string; icon: React.ElementType }[] = [
+  { type: "video",   label: "Video Content",          icon: Film },
+  { type: "written", label: "Written Works",           icon: FileText },
+  { type: "audio",   label: "Audio & Podcasts",        icon: Mic },
+  { type: "images",  label: "Images & Photography",   icon: Image },
+  { type: "social",  label: "Social Media Content",   icon: Share2 },
+  { type: "design",  label: "Design & Illustration",  icon: Palette },
+  { type: "games",   label: "Games & Interactive",    icon: Gamepad2 },
+  { type: "film",    label: "Film & Cinema",           icon: Clapperboard },
+  { type: "other",   label: "Other / Custom",          icon: HelpCircle },
+];
+
+function DownloadFormDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleDownload = (type: string) => {
+    setOpen(false);
+    const a = document.createElement("a");
+    a.href = `/api/forms/download/${type}`;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-medium transition-colors px-2 py-1.5 rounded-lg hover:bg-white/10"
+      >
+        <Download className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Download Form</span>
+        <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="px-3 py-2 border-b border-gray-50">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Download PDF Form</p>
+          </div>
+          {DOWNLOAD_OPTIONS.map(({ type, label, icon: Icon }) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => handleDownload(type)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 hover:bg-[oklch(0.96_0.02_264)] hover:text-[oklch(0.22_0.08_264)] transition-colors"
+            >
+              <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -1243,6 +1312,7 @@ export default function Home() {
               })}
             </div>
           )}
+          <DownloadFormDropdown />
           <button type="button" onClick={handleReset} className="flex items-center gap-1.5 text-white/50 hover:text-white/80 text-xs transition-colors">
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Start over</span>
