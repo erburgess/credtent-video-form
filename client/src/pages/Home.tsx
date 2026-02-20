@@ -64,12 +64,20 @@ const SHARED_QUESTIONS: Question[] = [
     id: "ownershipType",
     ask: "Who owns the intellectual property rights to this content?",
     type: "chips-single",
-    options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed/unclear"],
+    options: ["Fully owned by us", "Partially owned", "Licensed from others", "Mixed/unclear", "Not sure"],
   },
   {
     id: "hasThirdPartyIP",
     ask: "Does the content contain any embedded third-party IP — licensed music, logos, trademarks, or other copyrighted elements?",
     type: "toggle",
+  },
+  {
+    id: "thirdPartyIPDetail",
+    ask: "What types of third-party IP are embedded?",
+    type: "chips",
+    optional: true,
+    options: ["Licensed music", "Trademarks/logos", "Stock footage", "Archival material", "News clips", "Not sure"],
+    showIf: (a) => a.hasThirdPartyIP === true,
   },
   {
     id: "hasPII",
@@ -80,20 +88,28 @@ const SHARED_QUESTIONS: Question[] = [
     id: "piiManagement",
     ask: "How is that PII currently managed?",
     type: "chips",
-    options: ["Anonymized/blurred", "Consent obtained", "Private data excluded", "Not yet addressed"],
+    optional: true,
+    options: ["Anonymized/blurred", "Consent obtained", "Private data excluded", "Not yet addressed", "Not applicable"],
     showIf: (a) => a.hasPII === true,
   },
   {
     id: "exclusivity",
     ask: "How exclusive is this content — is similar content widely available elsewhere?",
     type: "chips-single",
-    options: ["Fully proprietary", "Mostly proprietary", "Some similar exists", "Widely available"],
+    options: ["Fully proprietary", "Mostly proprietary", "Some similar exists", "Widely available", "Not sure"],
   },
   {
     id: "totalVolume",
     ask: "What's the approximate total volume of this content?",
     type: "text",
     hint: "e.g. '500 hours', '10,000 articles', '2 million images'",
+  },
+  {
+    id: "historicalSignificance",
+    ask: "Does this content have historical, cultural, or archival significance?",
+    type: "chips-single",
+    optional: true,
+    options: ["Yes — significant historical record", "Yes — culturally important", "Somewhat", "No", "Not sure"],
   },
   {
     id: "licensingIntent",
@@ -105,8 +121,9 @@ const SHARED_QUESTIONS: Question[] = [
     id: "licensingModel",
     ask: "What licensing structures would you consider?",
     type: "chips",
-    options: ["Non-exclusive", "Exclusive", "Perpetual", "Term-limited", "Revenue share", "Flat fee", "Open to discussion"],
-    showIf: (a) => a.licensingIntent === "Yes, open to licensing",
+    optional: true,
+    options: ["Non-exclusive", "Exclusive", "Perpetual", "Term-limited", "Revenue share", "Flat fee", "Open to discussion", "Not applicable"],
+    showIf: (a) => a.licensingIntent === "Yes, open to licensing" || a.licensingIntent === "Maybe, need more info",
   },
   {
     id: "previousAIUse",
@@ -119,16 +136,51 @@ const SHARED_QUESTIONS: Question[] = [
 
 const VIDEO_QUESTIONS: Question[] = [
   {
-    id: "genres",
-    ask: "What's the primary genre or subject matter of the video library? Select all that apply.",
+    id: "videoCategory",
+    ask: "How would you broadly categorize this video content?",
     type: "chips",
-    options: ["Sports", "Educational", "Documentary", "Corporate", "Entertainment", "News/Journalism", "Medical/Health", "Industrial", "Surveillance/Security", "User-Generated", "Nature/Wildlife", "Travel", "Lifestyle", "Other"],
+    options: ["Television series/episodes", "Streaming originals", "Live broadcast recordings", "Documentary", "Film/cinema", "Corporate/brand", "Educational/training", "News/journalism", "Sports", "User-generated", "Raw/unedited footage", "Other"],
+  },
+  {
+    id: "tvShowDetails",
+    ask: "Is this content from a specific show, series, or broadcast program? If so, please name it and describe the format.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'The Ed Sullivan Show — weekly variety show, CBS, 1948–1971' or 'N/A'",
+    showIf: (a) => Array.isArray(a.videoCategory) && (a.videoCategory as string[]).some((c) =>
+      ["Television series/episodes", "Streaming originals", "Live broadcast recordings"].includes(c)
+    ),
+  },
+  {
+    id: "genres",
+    ask: "What genres or subject matter does the video library cover? Select all that apply.",
+    type: "chips",
+    options: ["Variety/entertainment", "Drama", "Comedy", "Talk show/interview", "Reality/unscripted", "Music performance", "Sports", "News/current affairs", "Documentary", "Educational", "Children's", "Sci-fi/fantasy", "Action/thriller", "Nature/wildlife", "Lifestyle/travel", "Medical/health", "Industrial", "Other"],
+  },
+  {
+    id: "broadcastEra",
+    ask: "What era does the content span?",
+    type: "chips",
+    options: ["Pre-1960s", "1960s–1970s", "1970s–1980s", "1980s–1990s", "1990s–2000s", "2000s–2010s", "2010s–present", "Mixed eras", "Not applicable"],
   },
   {
     id: "clipDuration",
-    ask: "What's the typical duration of individual clips?",
+    ask: "What's the typical duration of individual clips or episodes?",
     type: "chips-single",
-    options: ["Under 30s", "30s–2min", "2–10min", "10–30min", "30min+", "Mixed"],
+    options: ["Under 30s", "30s–2min", "2–10min", "10–30min", "30–60min", "60min+", "Mixed", "Not applicable"],
+  },
+  {
+    id: "hasNotablePeople",
+    ask: "Does the content feature notable, famous, or historically significant individuals?",
+    type: "toggle",
+  },
+  {
+    id: "notablePeopleNames",
+    ask: "Please list the notable individuals featured — performers, hosts, athletes, public figures, or historical persons.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'The Beatles, Elvis Presley, Bob Hope, Ella Fitzgerald' — include as many as you can",
+    showIf: (a) => a.hasNotablePeople === true,
   },
   {
     id: "hasBRoll",
@@ -139,20 +191,22 @@ const VIDEO_QUESTIONS: Question[] = [
     id: "bRollTypes",
     ask: "What types of B-roll are included?",
     type: "chips",
-    options: ["Establishing shots", "Cutaway footage", "Reaction shots", "Environmental/location", "Product close-ups", "Action sequences", "Crowd/event footage", "Nature/landscape", "Urban/architectural"],
+    optional: true,
+    options: ["Establishing shots", "Cutaway footage", "Reaction shots", "Environmental/location", "Audience/crowd footage", "Backstage/behind-the-scenes", "Product close-ups", "Action sequences", "Nature/landscape", "Urban/architectural", "Not applicable"],
     showIf: (a) => a.hasBRoll === true,
   },
   {
     id: "resolution",
     ask: "What resolutions does the content include?",
     type: "chips",
-    options: ["SD (480p)", "HD (720p)", "Full HD (1080p)", "2K", "4K", "6K+", "Mixed"],
+    options: ["SD (480p or below)", "HD (720p)", "Full HD (1080p)", "2K", "4K", "6K+", "Mixed", "Not sure"],
   },
   {
     id: "formats",
     ask: "What video formats or codecs are used?",
     type: "chips",
-    options: ["MP4", "MOV", "AVI", "MXF", "ProRes", "RAW", "Other"],
+    optional: true,
+    options: ["MP4", "MOV", "AVI", "MXF", "ProRes", "RAW camera files", "Broadcast tape digitized", "Other", "Not sure"],
   },
   {
     id: "hasHumanSubjects",
@@ -161,22 +215,24 @@ const VIDEO_QUESTIONS: Question[] = [
   },
   {
     id: "demographicDiversity",
-    ask: "What demographic diversity is represented?",
+    ask: "What demographic diversity is represented in the human subjects?",
     type: "chips",
-    options: ["Age diversity", "Gender diversity", "Ethnic diversity", "Geographic diversity", "Activity diversity"],
+    optional: true,
+    options: ["Age diversity", "Gender diversity", "Ethnic/racial diversity", "Geographic diversity", "Occupational diversity", "Not applicable", "Not sure"],
     showIf: (a) => a.hasHumanSubjects === true,
   },
   {
     id: "metadataLevel",
-    ask: "What level of metadata or annotation exists for the videos?",
+    ask: "What level of metadata or annotation currently exists for the videos?",
     type: "chips-single",
-    options: ["None", "Basic tags/titles", "Transcripts/captions", "Object detection labels", "Full semantic annotation"],
+    options: ["None", "Basic tags/titles only", "Transcripts/captions", "Scene/shot-level labels", "Object/face detection labels", "Full semantic annotation", "Not sure"],
   },
   {
     id: "technicalIssues",
     ask: "Are there any known technical issues in the footage?",
     type: "chips",
-    options: ["Motion blur", "Poor lighting", "Camera shake", "Watermarks", "Compression artifacts", "None known"],
+    optional: true,
+    options: ["Motion blur", "Poor lighting", "Camera shake", "Watermarks/burn-ins", "Compression artifacts", "Film grain/damage", "Tape degradation", "None known", "Not sure"],
   },
 ];
 
@@ -449,7 +505,7 @@ const FILM_QUESTIONS: Question[] = [
     id: "filmGenres",
     ask: "What genres does the film content cover?",
     type: "chips",
-    options: ["Drama", "Comedy", "Action/thriller", "Horror", "Sci-fi/fantasy", "Documentary", "Animation", "Experimental", "Mixed"],
+    options: ["Drama", "Comedy", "Action/thriller", "Horror", "Sci-fi/fantasy", "Documentary", "Animation", "Experimental", "Mixed", "Not applicable"],
   },
   {
     id: "filmEra",
@@ -458,16 +514,29 @@ const FILM_QUESTIONS: Question[] = [
     options: ["Pre-1960s", "1960s–1980s", "1980s–2000s", "2000s–2015", "2015–present", "Mixed eras"],
   },
   {
+    id: "filmNotablePeople",
+    ask: "Does the content feature notable directors, actors, or historically significant individuals?",
+    type: "toggle",
+  },
+  {
+    id: "filmNotablePeopleNames",
+    ask: "Please list the notable individuals featured — directors, actors, producers, or other public figures.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Orson Welles, Katharine Hepburn, Stanley Kubrick'",
+    showIf: (a) => a.filmNotablePeople === true,
+  },
+  {
     id: "filmSubtitles",
     ask: "Are subtitles or closed captions available?",
     type: "chips-single",
-    options: ["Full subtitles (multiple languages)", "English only", "Partial", "None"],
+    options: ["Full subtitles (multiple languages)", "English only", "Partial", "None", "Not sure"],
   },
   {
     id: "filmRights",
     ask: "What is the rights status of the film content?",
     type: "chips-single",
-    options: ["Fully owned/produced in-house", "Acquired with full rights", "Acquired with limited rights", "Mixed/unclear"],
+    options: ["Fully owned/produced in-house", "Acquired with full rights", "Acquired with limited rights", "Mixed/unclear", "Not sure"],
   },
 ];
 
@@ -1099,13 +1168,16 @@ export default function Home() {
   const { phase } = appState;
   const isDone = phase.stage === "done";
 
+  // N/A is treated as a valid selection — always allows send
+  const hasNASelected = pendingChips.includes("Not applicable") || pendingChips.includes("Not sure");
+
   const canSend = (): boolean => {
     if (isDone) return false;
     if (phase.stage === "type-select") return pendingTypeSelect.length > 0;
     if (phase.stage === "more-types") return false;
     if (!currentQ) return false;
     if (currentQ.optional) return true;
-    if (currentQ.type === "chips" || currentQ.type === "chips-single") return pendingChips.length > 0;
+    if (currentQ.type === "chips" || currentQ.type === "chips-single") return pendingChips.length > 0 || hasNASelected;
     if (currentQ.type === "toggle") return pendingToggle !== null;
     return inputText.trim().length > 0;
   };
