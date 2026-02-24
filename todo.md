@@ -36,6 +36,12 @@
 - [x] Pre-selected content types based on scan results
 - [x] Website inventory summary on completion screen
 - [x] Vitest tests for website crawler
-- [ ] Success/accolades question set (awards, certifications, sales figures, ratings)
+- [x] Success/accolades question set (awards, certifications, sales figures, ratings)
+- [x] OMDB API integration for IMDB/Rotten Tomatoes/Metacritic ratings (film/video)
+- [x] Open Library API integration for book ratings and edition counts
+- [x] AccoladesCard component shown in chat after type completion
+- [x] Accolades results section on summary screen
+- [x] LLM-generated valuation note synthesizing all accolades signals
+- [x] Vitest tests for ratingsLookup module (17 tests total passing)
 - [ ] Subject matter / uniqueness questions per content type (friendly language, no AI jargon)
 - [ ] Update PDF templates to include website, accolades, and subject matter sections

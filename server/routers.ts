@@ -12,6 +12,7 @@ import {
   countAssessments,
 } from "./db";
 import { analyzeWebsite } from "./websiteCrawler";
+import { lookupAccolades } from "./ratingsLookup";
 import { notifyOwner } from "./_core/notification";
 
 // Admin-only guard
@@ -44,6 +45,28 @@ export const appRouter = router({
       .input(z.object({ url: z.string().min(3) }))
       .mutation(async ({ input }) => {
         return analyzeWebsite(input.url);
+      }),
+  }),
+
+  // ── Accolades & ratings lookup ──────────────────────────────────────────────
+  accolades: router({
+    /**
+     * Look up external ratings (IMDB, Rotten Tomatoes, Open Library) for a content title.
+     * Public — no login required.
+     */
+    lookup: publicProcedure
+      .input(
+        z.object({
+          title: z.string().min(1),
+          kind: z.enum(["film", "video", "written", "audio", "other"]),
+          year: z.string().optional(),
+          author: z.string().optional(),
+          userAccolades: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const omdbApiKey = process.env.OMDB_API_KEY ?? "";
+        return lookupAccolades({ ...input, omdbApiKey });
       }),
   }),
 

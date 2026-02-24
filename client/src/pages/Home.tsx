@@ -12,8 +12,9 @@ import { trpc } from "@/lib/trpc";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
-  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles, Loader2,
-  Globe, BarChart3, Download, ChevronDown,
+  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles,
+  Star, TrendingUp, Award, BarChart3, Download, ChevronDown,
+  Globe, Loader2,
 } from "lucide-react";
 
 // ─── Content Types ────────────────────────────────────────────────────────────
@@ -726,6 +727,24 @@ interface ContentInventoryResult {
 
 type ContentCategory = "written" | "audio" | "video" | "images" | "social" | "design" | "games" | "film" | "other";
 
+interface RatingsSource {
+  platform: string;
+  score: string;
+  voteCount?: string;
+  url?: string;
+}
+
+interface AccoladesResult {
+  title: string;
+  kind: string;
+  externalRatings: RatingsSource[];
+  boxOffice?: string;
+  certifications?: string[];
+  editionCount?: number;
+  valuationNote: string;
+  error?: string;
+}
+
 interface AppState {
   companyAnswers: TypeAnswers;
   contentEntries: ContentEntry[];
@@ -733,6 +752,7 @@ interface AppState {
   phase: Phase;
   notes: string;
   websiteInventory?: ContentInventoryResult;
+  accoladesResults: Record<string, AccoladesResult>; // keyed by contentType
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1162,6 +1182,92 @@ function WebsiteInventoryCard({ inventory }: { inventory: ContentInventoryResult
   );
 }
 
+// ─── Accolades Card ─────────────────────────────────────────────────────────
+
+function AccoladesCard({ contentType, result }: { contentType: ContentType; result: AccoladesResult }) {
+  const meta = CONTENT_TYPE_META[contentType];
+  const Icon = meta.icon;
+  const hasRatings = result.externalRatings && result.externalRatings.length > 0;
+
+  return (
+    <div className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-400">
+      <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <CredtentLogo size={16} />
+      </div>
+      <div className="bg-white border border-[oklch(0.68_0.19_41)]/25 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden max-w-sm w-full">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-[oklch(0.68_0.19_41)]/8 border-b border-[oklch(0.68_0.19_41)]/15">
+          <Icon className="w-4 h-4 text-[oklch(0.68_0.19_41)] flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[oklch(0.22_0.08_264)] truncate">{result.title}</p>
+            <p className="text-xs text-gray-400">{meta.label} — Critical &amp; Commercial Standing</p>
+          </div>
+        </div>
+
+        {/* External ratings */}
+        {hasRatings && (
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Star className="w-3.5 h-3.5 text-[oklch(0.68_0.19_41)]" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">External Ratings</p>
+            </div>
+            <div className="space-y-1.5">
+              {result.externalRatings.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-28 flex-shrink-0">{r.platform}</span>
+                  <span className="text-xs font-bold text-[oklch(0.22_0.08_264)]">{r.score}</span>
+                  {r.voteCount && <span className="text-xs text-gray-400">({r.voteCount})</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Box office / sales */}
+        {result.boxOffice && (
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Box Office / Sales</p>
+            </div>
+            <p className="text-xs font-bold text-[oklch(0.22_0.08_264)]">{result.boxOffice}</p>
+          </div>
+        )}
+
+        {/* Certifications / awards */}
+        {result.certifications && result.certifications.length > 0 && (
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Award className="w-3.5 h-3.5 text-[oklch(0.68_0.19_41)]" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Awards &amp; Certifications</p>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {result.certifications.map((cert, i) => (
+                <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[oklch(0.68_0.19_41)]/10 text-[oklch(0.45_0.15_41)]">
+                  {cert}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Valuation note */}
+        {result.valuationNote && (
+          <div className="px-4 pb-3 border-t border-gray-100 pt-3">
+            <p className="text-xs text-gray-600 leading-relaxed">{result.valuationNote}</p>
+          </div>
+        )}
+
+        {result.error && (
+          <div className="px-4 pb-3">
+            <p className="text-xs text-gray-400 italic">{result.error}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -1171,6 +1277,7 @@ export default function Home() {
     completedTypes: [],
     phase: { stage: "company", qIndex: 0 },
     notes: "",
+    accoladesResults: {},
   });
 
   const [chatHistory, setChatHistory] = useState<{ role: "assistant" | "user"; text: string; badge?: ContentType }[]>([]);
@@ -1184,6 +1291,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitMutation = trpc.assessments.submit.useMutation();
   const analyzeWebsiteMutation = trpc.website.analyze.useMutation();
+  const accloladesLookupMutation = trpc.accolades.lookup.useMutation();
+  const [pendingAccoladesType, setPendingAccoladesType] = useState<ContentType | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Current type's working answers (for showIf logic)
@@ -1346,11 +1455,11 @@ export default function Home() {
 
   const finishType = useCallback((state: AppState, type: ContentType) => {
     const meta = CONTENT_TYPE_META[type];
-    // For 'other', use the user's custom description as the label if available
     const customLabel = type === "other" && currentTypeAnswers.current.otherContentDescription
       ? String(currentTypeAnswers.current.otherContentDescription)
       : undefined;
-    const newEntry: ContentEntry = { type, answers: { ...currentTypeAnswers.current }, customLabel };
+    const answers = { ...currentTypeAnswers.current };
+    const newEntry: ContentEntry = { type, answers, customLabel };
     const newCompleted = [...state.completedTypes, type];
     currentTypeAnswers.current = {};
 
@@ -1364,7 +1473,44 @@ export default function Home() {
     const displayName = customLabel || meta.label;
     pushAssistant(`Great — I've captured your ${displayName} profile. Do you have any other types of content to add?`);
     setPendingTypeSelect([]);
-  }, [pushAssistant]);
+
+    // Trigger external ratings lookup if user indicated they have critical ratings
+    const hasCriticalRatings = answers.hasCriticalRatings === true;
+    const ratingsDetail = String(answers.criticalRatingsDetail ?? "").trim();
+    const titleSource =
+      String(answers.tvShowDetails ?? answers.writtenWordCount ?? "").trim() ||
+      String(state.companyAnswers.companyName ?? "").trim();
+    // Extract a title from the ratings detail or company name
+    const titleMatch = ratingsDetail.match(/^([^,;(\n]+)/) || null;
+    const lookupTitle = titleMatch ? titleMatch[1].trim() : titleSource;
+
+    if (hasCriticalRatings && lookupTitle) {
+      const kind: "film" | "video" | "written" | "audio" | "other" =
+        type === "film" ? "film" :
+        type === "video" ? "video" :
+        type === "written" ? "written" :
+        type === "audio" ? "audio" : "other";
+
+      setPendingAccoladesType(type);
+      accloladesLookupMutation.mutateAsync({
+        title: lookupTitle,
+        kind,
+        userAccolades: [
+          ratingsDetail,
+          String(answers.awardsDetail ?? ""),
+          String(answers.salesFiguresDetail ?? ""),
+        ].filter(Boolean).join(" | "),
+      }).then((result) => {
+        setAppState((s) => ({
+          ...s,
+          accoladesResults: { ...s.accoladesResults, [type]: result },
+        }));
+        setPendingAccoladesType(null);
+      }).catch(() => {
+        setPendingAccoladesType(null);
+      });
+    }
+  }, [pushAssistant, accloladesLookupMutation]);
 
   // ── Answer submission ─────────────────────────────────────────────────────
 
@@ -1476,7 +1622,7 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setAppState({ companyAnswers: {}, contentEntries: [], completedTypes: [], phase: { stage: "company", qIndex: 0 }, notes: "", websiteInventory: undefined });
+    setAppState({ companyAnswers: {}, contentEntries: [], completedTypes: [], phase: { stage: "company", qIndex: 0 }, notes: "", websiteInventory: undefined, accoladesResults: {} });
     setChatHistory([]);
     setInputText(""); setPendingChips([]); setPendingToggle(null); setPendingTypeSelect([]);
     setSummaryEmail(""); setSummarySubmitted(false);
@@ -1644,6 +1790,25 @@ export default function Home() {
             {appState.websiteInventory && phase.stage === "type-select" && !appState.websiteInventory.error && (
               <WebsiteInventoryCard inventory={appState.websiteInventory} />
             )}
+            {/* Accolades lookup in progress */}
+            {pendingAccoladesType && (
+              <div className="flex gap-3 items-start animate-in fade-in duration-300">
+                <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CredtentLogo size={16} />
+                </div>
+                <div className="bg-white border border-[oklch(0.68_0.19_41)]/30 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-xs">
+                  <div className="flex items-center gap-2.5">
+                    <Loader2 className="w-4 h-4 text-[oklch(0.68_0.19_41)] animate-spin flex-shrink-0" />
+                    <p className="text-sm font-semibold text-[oklch(0.22_0.08_264)]">Looking up ratings &amp; accolades…</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 ml-6">Checking IMDb, Rotten Tomatoes, Open Library…</p>
+                </div>
+              </div>
+            )}
+            {/* Accolades results cards */}
+            {Object.entries(appState.accoladesResults).map(([typeKey, result]) => (
+              <AccoladesCard key={typeKey} contentType={typeKey as ContentType} result={result} />
+            ))}
             <div ref={chatEndRef} />
           </div>
 
@@ -1855,6 +2020,61 @@ export default function Home() {
                         <div key={k}>
                           <p className="text-xs text-gray-400 mb-0.5">{labels[k] || k}</p>
                           <p className="text-sm font-semibold text-gray-800">{f}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Accolades & ratings section */}
+              {Object.keys(appState.accoladesResults).length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-50 bg-[oklch(0.68_0.19_41)]/5">
+                    <Award className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
+                    <span className="text-xs font-bold text-[oklch(0.22_0.08_264)] uppercase tracking-wider">Critical &amp; Commercial Standing</span>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {Object.entries(appState.accoladesResults).map(([typeKey, result]) => {
+                      const meta = CONTENT_TYPE_META[typeKey as ContentType];
+                      const Icon = meta?.icon ?? Award;
+                      return (
+                        <div key={typeKey} className="px-5 py-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Icon className="w-3.5 h-3.5" style={{ color: meta?.color }} />
+                            <span className="text-xs font-bold text-gray-700">{result.title}</span>
+                            <span className="text-xs text-gray-400 ml-1">— {meta?.label}</span>
+                          </div>
+                          {result.externalRatings && result.externalRatings.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mb-2">
+                              {result.externalRatings.map((r, i) => (
+                                <div key={i} className="flex items-center gap-1.5">
+                                  <Star className="w-3 h-3 text-[oklch(0.68_0.19_41)]" />
+                                  <span className="text-xs text-gray-500">{r.platform}:</span>
+                                  <span className="text-xs font-bold text-[oklch(0.22_0.08_264)]">{r.score}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {result.boxOffice && (
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <TrendingUp className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-500">Box Office / Sales:</span>
+                              <span className="text-xs font-bold text-[oklch(0.22_0.08_264)]">{result.boxOffice}</span>
+                            </div>
+                          )}
+                          {result.certifications && result.certifications.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {result.certifications.map((cert, i) => (
+                                <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[oklch(0.68_0.19_41)]/10 text-[oklch(0.45_0.15_41)]">
+                                  {cert}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {result.valuationNote && (
+                            <p className="text-xs text-gray-500 italic leading-relaxed">{result.valuationNote}</p>
+                          )}
                         </div>
                       );
                     })}
