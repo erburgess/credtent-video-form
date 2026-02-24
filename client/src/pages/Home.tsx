@@ -12,7 +12,8 @@ import { trpc } from "@/lib/trpc";
 import {
   CheckCircle2, Send, Film, FileText, Mic, Image, Share2,
   Palette, Gamepad2, Clapperboard, Building2, RotateCcw, Plus,
-  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles, Download, ChevronDown,
+  ChevronRight, HelpCircle, Mail, ArrowRight, Sparkles, Loader2,
+  Globe, BarChart3, Download, ChevronDown,
 } from "lucide-react";
 
 // ─── Content Types ────────────────────────────────────────────────────────────
@@ -698,6 +699,7 @@ const COMPANY_QUESTIONS: Question[] = [
 
 type Phase =
   | { stage: "company"; qIndex: number }
+  | { stage: "website-scan" }  // scanning URL before type-select
   | { stage: "type-select" }
   | { stage: "type-questions"; type: ContentType; qIndex: number; sharedIndex: number; inShared: boolean }
   | { stage: "more-types" }
@@ -710,12 +712,27 @@ interface ContentEntry {
   customLabel?: string;
 }
 
+interface ContentInventoryResult {
+  url: string;
+  siteName: string;
+  description: string;
+  counts: Partial<Record<ContentCategory, number>>;
+  signals: string[];
+  suggestedTypes: ContentCategory[];
+  summary: string;
+  crawledPages: number;
+  error?: string;
+}
+
+type ContentCategory = "written" | "audio" | "video" | "images" | "social" | "design" | "games" | "film" | "other";
+
 interface AppState {
   companyAnswers: TypeAnswers;
   contentEntries: ContentEntry[];
   completedTypes: ContentType[];
   phase: Phase;
   notes: string;
+  websiteInventory?: ContentInventoryResult;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1078,6 +1095,73 @@ function DownloadFormDropdown() {
   );
 }
 
+// ─── Website Inventory Card ──────────────────────────────────────────────────
+
+const CATEGORY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  written: { label: "Written Articles", icon: FileText, color: "oklch(0.55 0.18 145)" },
+  audio:   { label: "Audio / Podcasts", icon: Mic,      color: "oklch(0.60 0.18 30)" },
+  video:   { label: "Video",            icon: Film,     color: "oklch(0.55 0.15 264)" },
+  images:  { label: "Images",           icon: Image,    color: "oklch(0.55 0.16 200)" },
+  social:  { label: "Social Content",   icon: Share2,   color: "oklch(0.60 0.18 310)" },
+  design:  { label: "Design Assets",    icon: Palette,  color: "oklch(0.58 0.18 60)" },
+  games:   { label: "Games / Interactive", icon: Gamepad2, color: "oklch(0.52 0.18 280)" },
+  film:    { label: "Film / Cinema",    icon: Clapperboard, color: "oklch(0.45 0.12 264)" },
+  other:   { label: "Other Content",    icon: HelpCircle, color: "oklch(0.52 0.08 264)" },
+};
+
+function WebsiteInventoryCard({ inventory }: { inventory: ContentInventoryResult }) {
+  const entries = Object.entries(inventory.counts).filter(([, v]) => v && v > 0);
+  return (
+    <div className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-400">
+      <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <CredtentLogo size={16} />
+      </div>
+      <div className="bg-white border border-[oklch(0.68_0.19_41)]/25 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden max-w-sm w-full">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-[oklch(0.68_0.19_41)]/8 border-b border-[oklch(0.68_0.19_41)]/15">
+          <Globe className="w-4 h-4 text-[oklch(0.68_0.19_41)] flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[oklch(0.22_0.08_264)] truncate">{inventory.siteName}</p>
+            {inventory.description && (
+              <p className="text-xs text-gray-400 truncate">{inventory.description}</p>
+            )}
+          </div>
+        </div>
+        {/* Content counts */}
+        {entries.length > 0 && (
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Content detected</p>
+            </div>
+            <div className="space-y-1.5">
+              {entries.map(([cat, count]) => {
+                const meta = CATEGORY_META[cat] ?? CATEGORY_META.other;
+                const Icon = meta.icon;
+                return (
+                  <div key={cat} className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: meta.color + "22" }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
+                    </div>
+                    <span className="text-xs text-gray-700 font-medium flex-1">{meta.label}</span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: meta.color }}>
+                      {(count as number).toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {/* Footer */}
+        <div className="px-4 py-2 bg-gray-50/50 border-t border-gray-100">
+          <p className="text-xs text-gray-400">{inventory.crawledPages} page{inventory.crawledPages !== 1 ? "s" : ""} scanned</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -1099,6 +1183,7 @@ export default function Home() {
   const [summarySubmitted, setSummarySubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitMutation = trpc.assessments.submit.useMutation();
+  const analyzeWebsiteMutation = trpc.website.analyze.useMutation();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Current type's working answers (for showIf logic)
@@ -1132,19 +1217,81 @@ export default function Home() {
 
   // ── Advance logic ─────────────────────────────────────────────────────────
 
+  const startWebsiteScan = useCallback(async (state: AppState) => {
+    const url = String(state.companyAnswers.websiteUrl ?? "").trim();
+    const isMainContent = String(state.companyAnswers.websiteIsMainContent ?? "");
+    const shouldScan = url.length > 3 && (
+      isMainContent.includes("Yes") || isMainContent.includes("Partially")
+    );
+
+    if (!shouldScan) {
+      // Skip scan, go straight to type selection
+      setAppState((s) => ({ ...s, phase: { stage: "type-select" } }));
+      pushAssistant("Thanks! Now, what types of content does your organization have? Select all that apply — we'll go through each one in turn.");
+      setPendingTypeSelect([]);
+      return;
+    }
+
+    // Enter scanning phase
+    setAppState((s) => ({ ...s, phase: { stage: "website-scan" } }));
+    pushAssistant(`Great — let me take a quick look at ${url} to get a sense of what content you have there. This usually takes about 15–20 seconds…`);
+
+    try {
+      const result = await analyzeWebsiteMutation.mutateAsync({ url });
+      setAppState((s) => ({ ...s, websiteInventory: result as ContentInventoryResult, phase: { stage: "type-select" } }));
+
+      if (result.error) {
+        pushAssistant(`I wasn't able to fully scan that site, but no worries — you can still enter your content details manually. What types of content does your organization have?`);
+      } else {
+        // Build a friendly summary message
+        const countParts: string[] = [];
+        const c = result.counts as Partial<Record<string, number>>;
+        if (c.written && c.written > 0) countParts.push(`${c.written.toLocaleString()} written articles or posts`);
+        if (c.audio && c.audio > 0) countParts.push(`${c.audio.toLocaleString()} audio/podcast episodes`);
+        if (c.video && c.video > 0) countParts.push(`${c.video.toLocaleString()} videos`);
+        if (c.images && c.images > 0) countParts.push(`${c.images.toLocaleString()} images`);
+
+        const summaryMsg = result.summary ||
+          (countParts.length > 0
+            ? `I found ${countParts.join(", ")} on your site.`
+            : `I scanned your site and found some content. Let's go through the details below.`);
+
+        pushAssistant(summaryMsg);
+        setTimeout(() => {
+          pushAssistant("Based on what I found, I've pre-selected the content types below — but feel free to adjust. Select all that apply and we'll go through each one.");
+          setPendingTypeSelect(
+            (result.suggestedTypes as string[]).filter((t) => ALL_CONTENT_TYPES.includes(t as ContentType)) as ContentType[]
+          );
+        }, 800);
+        return;
+      }
+    } catch {
+      setAppState((s) => ({ ...s, phase: { stage: "type-select" } }));
+      pushAssistant(`I had trouble scanning that site, but that's okay — let's continue manually. What types of content does your organization have?`);
+    }
+    setPendingTypeSelect([]);
+  }, [analyzeWebsiteMutation, pushAssistant]);
+
   const advancePhase = useCallback((state: AppState, userDisplay: string) => {
     const { phase } = state;
 
     if (phase.stage === "company") {
       const nextIdx = phase.qIndex + 1;
-      if (nextIdx < COMPANY_QUESTIONS.length) {
-        setAppState((s) => ({ ...s, phase: { stage: "company", qIndex: nextIdx } }));
-        pushAssistant(COMPANY_QUESTIONS[nextIdx].ask);
+      // Find the next visible question (respecting showIf)
+      let nextVisibleIdx = nextIdx;
+      while (
+        nextVisibleIdx < COMPANY_QUESTIONS.length &&
+        COMPANY_QUESTIONS[nextVisibleIdx].showIf &&
+        !COMPANY_QUESTIONS[nextVisibleIdx].showIf!(state.companyAnswers)
+      ) {
+        nextVisibleIdx++;
+      }
+      if (nextVisibleIdx < COMPANY_QUESTIONS.length) {
+        setAppState((s) => ({ ...s, phase: { stage: "company", qIndex: nextVisibleIdx } }));
+        pushAssistant(COMPANY_QUESTIONS[nextVisibleIdx].ask);
       } else {
-        // Move to type selection
-        setAppState((s) => ({ ...s, phase: { stage: "type-select" } }));
-        pushAssistant("Thanks! Now, what types of content does your organization have? Select all that apply — we'll go through each one in turn.");
-        setPendingTypeSelect([]);
+        // All company questions done — trigger website scan if applicable
+        startWebsiteScan(state);
       }
       return;
     }
@@ -1329,7 +1476,7 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setAppState({ companyAnswers: {}, contentEntries: [], completedTypes: [], phase: { stage: "company", qIndex: 0 }, notes: "" });
+    setAppState({ companyAnswers: {}, contentEntries: [], completedTypes: [], phase: { stage: "company", qIndex: 0 }, notes: "", websiteInventory: undefined });
     setChatHistory([]);
     setInputText(""); setPendingChips([]); setPendingToggle(null); setPendingTypeSelect([]);
     setSummaryEmail(""); setSummarySubmitted(false);
@@ -1391,6 +1538,7 @@ export default function Home() {
 
   const canSend = (): boolean => {
     if (isDone) return false;
+    if (phase.stage === "website-scan") return false; // scanning in progress
     if (phase.stage === "type-select") return pendingTypeSelect.length > 0;
     if (phase.stage === "more-types") return false;
     if (!currentQ) return false;
@@ -1469,6 +1617,32 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            )}
+            {/* Website scanning animation */}
+            {phase.stage === "website-scan" && !isTyping && (
+              <div className="flex gap-3 items-start animate-in fade-in duration-300">
+                <div className="w-8 h-8 rounded-full bg-[oklch(0.22_0.08_264)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CredtentLogo size={16} />
+                </div>
+                <div className="bg-white border border-[oklch(0.68_0.19_41)]/30 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-xs">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <Loader2 className="w-4 h-4 text-[oklch(0.68_0.19_41)] animate-spin flex-shrink-0" />
+                    <p className="text-sm font-semibold text-[oklch(0.22_0.08_264)]">Scanning your website…</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {["Fetching homepage", "Crawling content pages", "Checking sitemap & RSS feeds", "Classifying content types"].map((step, i) => (
+                      <div key={step} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[oklch(0.68_0.19_41)] animate-pulse flex-shrink-0" style={{ animationDelay: `${i * 300}ms` }} />
+                        <span className="text-xs text-gray-500">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Website inventory card — shown once scan completes */}
+            {appState.websiteInventory && phase.stage === "type-select" && !appState.websiteInventory.error && (
+              <WebsiteInventoryCard inventory={appState.websiteInventory} />
             )}
             <div ref={chatEndRef} />
           </div>
@@ -1632,6 +1806,39 @@ export default function Home() {
                   Here's a summary of what you've shared. Credtent will use this to prepare a valuation estimate for your content library.
                 </p>
               </div>
+
+              {/* Website inventory card on summary */}
+              {appState.websiteInventory && !appState.websiteInventory.error && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-50 bg-gray-50/50">
+                    <Globe className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
+                    <span className="text-xs font-bold text-[oklch(0.22_0.08_264)] uppercase tracking-wider">Website Content Scan</span>
+                    <span className="ml-auto text-xs text-gray-400">{appState.websiteInventory.crawledPages} pages scanned</span>
+                  </div>
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-semibold text-gray-700 mb-3">{appState.websiteInventory.siteName}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {Object.entries(appState.websiteInventory.counts)
+                        .filter(([, v]) => v && (v as number) > 0)
+                        .map(([cat, count]) => {
+                          const meta = CATEGORY_META[cat] ?? CATEGORY_META.other;
+                          const Icon = meta.icon;
+                          return (
+                            <div key={cat} className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: meta.color + "22" }}>
+                                <Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400">{meta.label}</p>
+                                <p className="text-sm font-bold tabular-nums" style={{ color: meta.color }}>{(count as number).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Organization card */}
               {Object.keys(appState.companyAnswers).length > 0 && (

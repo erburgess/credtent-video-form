@@ -11,6 +11,7 @@ import {
   updateAssessmentStatus,
   countAssessments,
 } from "./db";
+import { analyzeWebsite } from "./websiteCrawler";
 import { notifyOwner } from "./_core/notification";
 
 // Admin-only guard
@@ -31,6 +32,19 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+
+  // ── Website analysis ────────────────────────────────────────────────────────
+  website: router({
+    /**
+     * Crawl a website URL and return a content inventory.
+     * Public — no login required.
+     */
+    analyze: publicProcedure
+      .input(z.object({ url: z.string().min(3) }))
+      .mutation(async ({ input }) => {
+        return analyzeWebsite(input.url);
+      }),
   }),
 
   // ── Assessment procedures ────────────────────────────────────────────────────
