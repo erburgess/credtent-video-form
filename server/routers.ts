@@ -140,6 +140,22 @@ export const appRouter = router({
           completedTypes: z.array(z.string()),
           notes: z.string().optional(),
           submissionEmail: z.email().optional(),
+          valuationEstimate: z.object({
+            rangeLow: z.string(),
+            rangeMid: z.string(),
+            rangeHigh: z.string(),
+            rangeUnit: z.string(),
+            confidence: z.enum(["high", "medium", "low"]),
+            headline: z.string(),
+            rationale: z.string(),
+            valueDrivers: z.array(z.object({
+              factor: z.string(),
+              impact: z.enum(["high", "medium", "low"]),
+              description: z.string(),
+            })),
+            caveats: z.string().optional(),
+            disclaimer: z.string(),
+          }).optional(),
         })
       )
       .mutation(async ({ input }) => {
@@ -156,6 +172,7 @@ export const appRouter = router({
           contentEntries: input.contentEntries,
           contentTypes: input.completedTypes.join(", "),
           notes: input.notes ?? null,
+          valuationEstimate: input.valuationEstimate ?? null,
           status: "submitted",
         });
 

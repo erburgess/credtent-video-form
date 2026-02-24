@@ -55,3 +55,8 @@
 - [x] Key value drivers breakdown (rarity, volume, accolades, exclusivity, etc.)
 - [x] Valuation card with streaming/loading state on summary screen
 - [x] Vitest tests for valuation procedure (8 tests, 25 total passing)
+- [x] Store valuation estimate in assessments table (valuationEstimate JSON column)
+- [x] Update submit procedure to save valuation data alongside assessment
+- [x] Show valuation range badge in admin submission list (low/mid/high + confidence)
+- [x] Show full valuation breakdown in admin submission detail drawer
+- [x] Vitest tests for updated submit procedure with valuation data (25 tests passing)

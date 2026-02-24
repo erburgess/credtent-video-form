@@ -2151,6 +2151,7 @@ export default function Home() {
         completedTypes: appState.completedTypes,
         notes: appState.notes || undefined,
         submissionEmail: summaryEmail,
+        valuationEstimate: valuationResult ?? undefined,
       });
       setSummarySubmitted(true);
     } catch (err) {

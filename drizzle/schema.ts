@@ -42,6 +42,8 @@ export const assessments = mysqlTable("assessments", {
   contentTypes: text("contentTypes"),
   /** Free-text notes from the final step */
   notes: text("notes"),
+  /** JSON blob of the LLM-generated valuation estimate (low/mid/high range + value drivers) */
+  valuationEstimate: json("valuationEstimate"),
   /** Submission status */
   status: mysqlEnum("status", ["submitted", "reviewed", "in_progress", "archived"]).default("submitted").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
