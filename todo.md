@@ -43,5 +43,9 @@
 - [x] Accolades results section on summary screen
 - [x] LLM-generated valuation note synthesizing all accolades signals
 - [x] Vitest tests for ratingsLookup module (17 tests total passing)
-- [ ] Subject matter / uniqueness questions per content type (friendly language, no AI jargon)
+- [x] Subject matter questions: what topics/subjects the content covers (per-type + shared)
+- [x] Uniqueness questions: how rare or specialized the content is vs. what's widely available
+- [x] Depth/expertise questions: is this beginner-friendly or expert-level, insider access, etc.
+- [x] Geographic/cultural specificity questions: is content local, regional, global, or niche-cultural
+- [x] Language and accessibility questions: languages covered, subtitles, transcripts available
 - [ ] Update PDF templates to include website, accolades, and subject matter sections

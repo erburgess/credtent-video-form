@@ -178,22 +178,69 @@ const SHARED_QUESTIONS: Question[] = [
     id: "subjectMatters",
     ask: "What topics, themes, or subject areas does this content cover? Think broadly — what would someone search for to find it?",
     type: "textarea",
-    optional: true,
     hint: "e.g. 'Rock and roll history, celebrity interviews, American pop culture 1948–1971, live musical performances'",
+  },
+  {
+    id: "contentRarity",
+    ask: "How would you describe the rarity of this content — could someone find similar material elsewhere, or is this truly one of a kind?",
+    type: "chips-single",
+    options: [
+      "Completely irreplaceable — nothing else like it exists",
+      "Very rare — only a handful of similar collections exist",
+      "Somewhat rare — hard to find but not unique",
+      "Moderately available — similar content exists elsewhere",
+      "Widely available — similar content is easy to find",
+      "Not sure",
+    ],
+  },
+  {
+    id: "contentDepth",
+    ask: "How would you describe the depth and expertise level of this content?",
+    type: "chips-single",
+    options: [
+      "Highly specialized — expert-level, insider, or professional-grade",
+      "Mostly specialized — above average depth",
+      "Mixed — some deep, some general",
+      "General audience — accessible and broad",
+      "Entry-level / introductory",
+      "Not sure",
+    ],
+  },
+  {
+    id: "geographicScope",
+    ask: "What is the geographic or cultural focus of this content?",
+    type: "chips",
+    options: [
+      "Global / international",
+      "North American",
+      "European",
+      "Latin American",
+      "Asian / Pacific",
+      "African",
+      "Middle Eastern",
+      "Hyper-local / regional",
+      "Culture-specific niche",
+      "Not geographically focused",
+    ],
   },
   {
     id: "contentUniqueness",
     ask: "In your own words, what makes this content special or hard to find anywhere else?",
     type: "textarea",
     optional: true,
-    hint: "e.g. 'One-of-a-kind live performances that were never commercially released', 'The only archive of its kind from this era'",
+    hint: "e.g. 'One-of-a-kind live performances never commercially released', 'The only archive of its kind from this era', 'Decades of proprietary research'",
   },
   {
     id: "audienceReach",
-    ask: "Who is the primary audience for this content, and how large is that audience?",
+    ask: "Who is the main audience for this content?",
     type: "chips",
-    optional: true,
     options: ["General public / mass market", "Niche enthusiasts", "Academic / researchers", "Industry professionals", "Children / families", "International audience", "Not sure"],
+  },
+  {
+    id: "contentLanguages",
+    ask: "What languages does this content cover?",
+    type: "chips",
+    options: ["English only", "Spanish", "French", "German", "Mandarin / Chinese", "Japanese", "Portuguese", "Arabic", "Other languages", "Multiple languages", "Not sure"],
   },
 ];
 
@@ -341,6 +388,31 @@ const VIDEO_QUESTIONS: Question[] = [
       return s !== "Not yet digitized (physical media only)";
     },
   },
+  // ── Subject matter (video-specific) ─────────────────────────────────────────
+  {
+    id: "videoTopicDepth",
+    ask: "Does this video content go deep on specific topics, or does it cover a wide range of subjects at a surface level?",
+    type: "chips-single",
+    options: [
+      "Deep focus — extensive coverage of specific topics",
+      "Broad coverage — wide variety of subjects",
+      "Mix of deep dives and broad coverage",
+      "Not sure",
+    ],
+  },
+  {
+    id: "videoInsiderAccess",
+    ask: "Does this content include insider access, exclusive footage, or behind-the-scenes material that would be difficult or impossible to recreate?",
+    type: "toggle",
+  },
+  {
+    id: "videoInsiderDetail",
+    ask: "Briefly describe what makes that access or footage exclusive.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Backstage footage of artists who have since passed away', 'Exclusive access to private events never publicly broadcast'",
+    showIf: (a) => a.videoInsiderAccess === true,
+  },
 ];
 
 // ── Written content questions ─────────────────────────────────────────────────
@@ -388,6 +460,44 @@ const WRITTEN_QUESTIONS: Question[] = [
     type: "chips",
     options: ["Plain text (.txt)", "Markdown", "HTML/web", "PDF", "Word/DOCX", "EPUB", "Structured (JSON/XML)", "Mixed"],
   },
+  // ── Subject matter (written-specific) ─────────────────────────────────────
+  {
+    id: "writtenNicheVsMainstream",
+    ask: "Is this written content aimed at a niche or specialist audience, or is it written for a general mainstream readership?",
+    type: "chips-single",
+    options: [
+      "Highly specialized / niche — written for experts or insiders",
+      "Mostly specialized — above average depth",
+      "Mix of specialist and general content",
+      "General / mainstream readership",
+      "Not sure",
+    ],
+  },
+  {
+    id: "writtenAuthorExpertise",
+    ask: "Are the authors or contributors recognized experts, credentialed professionals, or notable figures in their field?",
+    type: "chips-single",
+    options: [
+      "Yes — widely recognized experts or public figures",
+      "Yes — credentialed professionals (academics, journalists, etc.)",
+      "Mix of expert and general contributors",
+      "Mostly general / anonymous contributors",
+      "Not sure",
+    ],
+  },
+  {
+    id: "writtenHasProprietaryData",
+    ask: "Does the written content include original research, proprietary data, or findings that aren't available anywhere else?",
+    type: "toggle",
+  },
+  {
+    id: "writtenProprietaryDataDetail",
+    ask: "Briefly describe what original research or proprietary data is included.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Decades of original investigative journalism', 'Proprietary market research reports', 'First-hand oral histories'",
+    showIf: (a) => a.writtenHasProprietaryData === true,
+  },
 ];
 
 // ── Audio questions ───────────────────────────────────────────────────────────
@@ -429,6 +539,40 @@ const AUDIO_QUESTIONS: Question[] = [
     type: "chips",
     options: ["MP3", "WAV", "FLAC", "AAC", "OGG", "Mixed"],
   },
+  // ── Subject matter (audio-specific) ───────────────────────────────────────
+  {
+    id: "audioTopics",
+    ask: "What topics or themes do the conversations, interviews, or narration cover?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'True crime, investigative journalism, celebrity interviews, science explainers, financial advice'",
+  },
+  {
+    id: "audioSpeakerExpertise",
+    ask: "Are the speakers, hosts, or performers recognized experts, public figures, or notable voices in their field?",
+    type: "chips-single",
+    options: [
+      "Yes — widely recognized public figures or celebrities",
+      "Yes — credentialed professionals or domain experts",
+      "Mix of notable and general speakers",
+      "Mostly everyday or anonymous speakers",
+      "Not applicable (music/sound effects)",
+      "Not sure",
+    ],
+  },
+  {
+    id: "audioUniqueCaptures",
+    ask: "Does the audio include any recordings that would be impossible to recreate today — live events, interviews with people who have passed, or rare performances?",
+    type: "toggle",
+  },
+  {
+    id: "audioUniqueCapturesDetail",
+    ask: "Briefly describe what makes those recordings irreplaceable.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Live radio broadcasts from the 1940s', 'Interviews with historical figures no longer living'",
+    showIf: (a) => a.audioUniqueCaptures === true,
+  },
 ];
 
 // ── Image questions ───────────────────────────────────────────────────────────
@@ -469,6 +613,32 @@ const IMAGE_QUESTIONS: Question[] = [
     ask: "Do the images feature identifiable human subjects?",
     type: "toggle",
   },
+  // ── Subject matter (images-specific) ─────────────────────────────────────
+  {
+    id: "imageContextualValue",
+    ask: "Do these images capture moments, places, or subjects that would be difficult or impossible to photograph again today?",
+    type: "toggle",
+  },
+  {
+    id: "imageContextualValueDetail",
+    ask: "Briefly describe what makes those images irreplaceable.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Historical events from the 1960s civil rights movement', 'Demolished buildings and lost landscapes', 'Portraits of public figures no longer living'",
+    showIf: (a) => a.imageContextualValue === true,
+  },
+  {
+    id: "imageSpecialization",
+    ask: "Is this image collection focused on a specific niche or subject area, or is it a broad general collection?",
+    type: "chips-single",
+    options: [
+      "Highly specialized / niche subject matter",
+      "Focused on a specific industry or domain",
+      "Broad general collection",
+      "Mixed",
+      "Not sure",
+    ],
+  },
 ];
 
 // ── Social media questions ────────────────────────────────────────────────────
@@ -503,6 +673,26 @@ const SOCIAL_QUESTIONS: Question[] = [
     type: "chips",
     options: ["Brand/corporate accounts", "Individual creators", "News/media accounts", "Community/group pages", "Mixed"],
   },
+  // ── Subject matter (social-specific) ─────────────────────────────────────
+  {
+    id: "socialTopics",
+    ask: "What topics, communities, or conversations does this social content center on?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Sports commentary, fan communities, breaking news reactions, product launches, political discourse'",
+  },
+  {
+    id: "socialCreatorProfile",
+    ask: "Are the accounts or creators behind this content well-known, influential, or verified public figures?",
+    type: "chips-single",
+    options: [
+      "Yes — verified celebrities or major public figures",
+      "Yes — notable influencers or industry voices",
+      "Mix of notable and everyday accounts",
+      "Mostly everyday or anonymous accounts",
+      "Not sure",
+    ],
+  },
 ];
 
 // ── Design questions ──────────────────────────────────────────────────────────
@@ -531,6 +721,35 @@ const DESIGN_QUESTIONS: Question[] = [
     ask: "What metadata or annotations exist for the design assets?",
     type: "chips",
     options: ["Style/category tags", "Color palette data", "Usage context", "Brand guidelines", "None"],
+  },
+  // ── Subject matter (design-specific) ─────────────────────────────────────
+  {
+    id: "designIndustryFocus",
+    ask: "Is this design work focused on a specific industry, brand, or domain, or is it general-purpose?",
+    type: "chips",
+    options: [
+      "Specific brand / corporate identity",
+      "Technology / software",
+      "Healthcare / medical",
+      "Retail / e-commerce",
+      "Media / entertainment",
+      "Education",
+      "Government / public sector",
+      "General purpose",
+      "Mixed",
+    ],
+  },
+  {
+    id: "designOriginalCreators",
+    ask: "Were these assets created by recognized designers, studios, or notable creative professionals?",
+    type: "chips-single",
+    options: [
+      "Yes — well-known designers or award-winning studios",
+      "Yes — professional designers but not widely known",
+      "Mix of professional and in-house work",
+      "Mostly in-house or anonymous work",
+      "Not sure",
+    ],
   },
 ];
 
@@ -597,6 +816,31 @@ const GAMES_QUESTIONS: Question[] = [
     type: "chips",
     options: ["3D models", "2D sprites/art", "Audio/music", "Code/scripts", "Level data", "Character animations", "Dialogue/narrative"],
   },
+  // ── Subject matter (games-specific) ─────────────────────────────────────
+  {
+    id: "gamesNarrativeDepth",
+    ask: "Does this game content include rich narrative, dialogue, or world-building — or is it primarily mechanical/gameplay focused?",
+    type: "chips-single",
+    options: [
+      "Rich narrative — deep story, extensive dialogue, lore",
+      "Moderate narrative — some story but gameplay-focused",
+      "Minimal narrative — mostly mechanics and gameplay",
+      "Pure assets (no narrative)",
+      "Not sure",
+    ],
+  },
+  {
+    id: "gamesIpOwnership",
+    ask: "Are the games or assets tied to a recognized intellectual property (IP) or franchise?",
+    type: "chips-single",
+    options: [
+      "Yes — major recognized franchise or IP",
+      "Yes — smaller but established IP",
+      "Original IP — not tied to an existing franchise",
+      "Mixed",
+      "Not sure",
+    ],
+  },
 ];
 
 // ── Film/Cinema questions ─────────────────────────────────────────────────────
@@ -644,6 +888,39 @@ const FILM_QUESTIONS: Question[] = [
     ask: "What is the rights status of the film content?",
     type: "chips-single",
     options: ["Fully owned/produced in-house", "Acquired with full rights", "Acquired with limited rights", "Mixed/unclear", "Not sure"],
+  },
+  // ── Subject matter (film-specific) ───────────────────────────────────────
+  {
+    id: "filmThematicFocus",
+    ask: "What themes, subjects, or stories does this film content explore?",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Social justice, coming-of-age stories, World War II history, independent cinema from the 1970s'",
+  },
+  {
+    id: "filmCulturalSignificance",
+    ask: "Is this film content considered culturally, historically, or artistically significant beyond its commercial value?",
+    type: "chips-single",
+    options: [
+      "Yes — widely recognized as culturally or historically important",
+      "Yes — significant within a specific community or genre",
+      "Somewhat — has a dedicated following or critical reputation",
+      "Primarily commercial value",
+      "Not sure",
+    ],
+  },
+  {
+    id: "filmProductionExclusivity",
+    ask: "Does this film content include behind-the-scenes material, production footage, or director's cuts that have never been publicly released?",
+    type: "toggle",
+  },
+  {
+    id: "filmProductionExclusivityDetail",
+    ask: "Briefly describe what unreleased or exclusive production material is included.",
+    type: "textarea",
+    optional: true,
+    hint: "e.g. 'Uncut interviews with the director', 'Original dailies and outtakes', 'Never-released alternate ending'",
+    showIf: (a) => a.filmProductionExclusivity === true,
   },
 ];
 
