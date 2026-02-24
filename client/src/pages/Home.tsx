@@ -1022,6 +1022,25 @@ interface AccoladesResult {
   error?: string;
 }
 
+interface ValueDriver {
+  factor: string;
+  impact: "high" | "medium" | "low";
+  description: string;
+}
+
+interface ValuationEstimate {
+  rangeLow: string;
+  rangeMid: string;
+  rangeHigh: string;
+  rangeUnit: string;
+  confidence: "high" | "medium" | "low";
+  headline: string;
+  rationale: string;
+  valueDrivers: ValueDriver[];
+  caveats: string;
+  disclaimer: string;
+}
+
 interface AppState {
   companyAnswers: TypeAnswers;
   contentEntries: ContentEntry[];
@@ -1545,6 +1564,158 @@ function AccoladesCard({ contentType, result }: { contentType: ContentType; resu
   );
 }
 
+// ─── Valuation Card ─────────────────────────────────────────────────────
+
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high:   "bg-green-100 text-green-700 border-green-200",
+  medium: "bg-amber-100 text-amber-700 border-amber-200",
+  low:    "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+const IMPACT_COLORS: Record<string, string> = {
+  high:   "text-green-600",
+  medium: "text-amber-600",
+  low:    "text-gray-400",
+};
+
+const IMPACT_BARS: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
+function ImpactDots({ impact }: { impact: string }) {
+  const filled = IMPACT_BARS[impact] ?? 1;
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3].map((i) => (
+        <span
+          key={i}
+          className={`w-1.5 h-1.5 rounded-full ${
+            i <= filled ? IMPACT_COLORS[impact] ?? "text-gray-400" : "bg-gray-200"
+          } ${i <= filled ? "bg-current" : ""}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ValuationCard({
+  loading,
+  result,
+  error,
+}: {
+  loading: boolean;
+  result: ValuationEstimate | null;
+  error: string | null;
+}) {
+  if (!loading && !result && !error) return null;
+
+  return (
+    <div className="bg-[oklch(0.22_0.08_264)] rounded-2xl overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-white/10">
+        <div className="w-8 h-8 rounded-lg bg-[oklch(0.68_0.19_41)]/20 flex items-center justify-center flex-shrink-0">
+          <BarChart3 className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-white uppercase tracking-wider">Preliminary Valuation Estimate</p>
+          <p className="text-xs text-white/40">AI training licensing — for discussion purposes only</p>
+        </div>
+        {result && (
+          <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+            CONFIDENCE_COLORS[result.confidence] ?? CONFIDENCE_COLORS.low
+          }`}>
+            {result.confidence.charAt(0).toUpperCase() + result.confidence.slice(1)} confidence
+          </span>
+        )}
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="px-5 py-8 flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 text-[oklch(0.68_0.19_41)] animate-spin" />
+          <p className="text-xs text-white/50 text-center">Analysing your content signals and generating a preliminary estimate…</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="px-5 py-5">
+          <p className="text-xs text-white/50 leading-relaxed">{error}</p>
+        </div>
+      )}
+
+      {/* Result */}
+      {!loading && result && (
+        <>
+          {/* Value range */}
+          <div className="px-5 py-5">
+            <p className="text-xs text-white/50 mb-3 leading-relaxed">{result.headline}</p>
+            <div className="flex items-end gap-3 mb-1">
+              <div className="text-center">
+                <p className="text-xs text-white/30 mb-0.5">Low</p>
+                <p className="text-lg font-bold text-white/60">{result.rangeLow}</p>
+              </div>
+              <div className="flex-1 flex items-center gap-1 pb-2">
+                <div className="flex-1 h-px bg-white/20" />
+                <div className="w-2 h-2 rounded-full bg-[oklch(0.68_0.19_41)]" />
+                <div className="flex-1 h-px bg-white/20" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-white/30 mb-0.5">Mid</p>
+                <p className="text-2xl font-bold text-[oklch(0.68_0.19_41)]">{result.rangeMid}</p>
+              </div>
+              <div className="flex-1 flex items-center gap-1 pb-2">
+                <div className="flex-1 h-px bg-white/20" />
+                <div className="w-2 h-2 rounded-full bg-[oklch(0.68_0.19_41)]" />
+                <div className="flex-1 h-px bg-white/20" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-white/30 mb-0.5">High</p>
+                <p className="text-lg font-bold text-white/60">{result.rangeHigh}</p>
+              </div>
+            </div>
+            <p className="text-xs text-white/30 text-center">{result.rangeUnit}</p>
+          </div>
+
+          {/* Rationale */}
+          <div className="px-5 pb-4 border-t border-white/10 pt-4">
+            <p className="text-xs text-white/60 leading-relaxed">{result.rationale}</p>
+          </div>
+
+          {/* Value drivers */}
+          {result.valueDrivers && result.valueDrivers.length > 0 && (
+            <div className="px-5 pb-4 border-t border-white/10 pt-4">
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Key Value Drivers</p>
+              <div className="space-y-2.5">
+                {result.valueDrivers.map((driver, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <ImpactDots impact={driver.impact} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white/80">{driver.factor}</p>
+                      <p className="text-xs text-white/40 leading-snug">{driver.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Caveats */}
+          {result.caveats && (
+            <div className="px-5 pb-4 border-t border-white/10 pt-4">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1">What Could Change This</p>
+              <p className="text-xs text-white/40 leading-relaxed">{result.caveats}</p>
+            </div>
+          )}
+
+          {/* Disclaimer */}
+          <div className="px-5 py-3 bg-white/5">
+            <p className="text-xs text-white/25 leading-relaxed italic">{result.disclaimer}</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -1569,7 +1740,11 @@ export default function Home() {
   const submitMutation = trpc.assessments.submit.useMutation();
   const analyzeWebsiteMutation = trpc.website.analyze.useMutation();
   const accloladesLookupMutation = trpc.accolades.lookup.useMutation();
+  const valuationMutation = trpc.valuation.estimate.useMutation();
   const [pendingAccoladesType, setPendingAccoladesType] = useState<ContentType | null>(null);
+  const [valuationResult, setValuationResult] = useState<ValuationEstimate | null>(null);
+  const [valuationLoading, setValuationLoading] = useState(false);
+  const [valuationError, setValuationError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Current type's working answers (for showIf logic)
@@ -1903,12 +2078,62 @@ export default function Home() {
     setChatHistory([]);
     setInputText(""); setPendingChips([]); setPendingToggle(null); setPendingTypeSelect([]);
     setSummaryEmail(""); setSummarySubmitted(false);
+    setValuationResult(null); setValuationLoading(false); setValuationError(null);
     currentTypeAnswers.current = {};
     setTimeout(() => {
       setChatHistory([{ role: "assistant", text: "Hi! I'm the Credtent content assessment assistant. I'll help you build a complete content profile across all of your content types — so we can assess the full value of your library for AI training licensing." }]);
       setTimeout(() => setChatHistory((p) => [...p, { role: "assistant", text: COMPANY_QUESTIONS[0].ask }]), 700);
     }, 300);
   };
+
+  // ── Auto-trigger valuation when summary screen appears ────────────────────
+  useEffect(() => {
+    if (appState.phase.stage !== "done") return;
+    if (valuationResult || valuationLoading) return;
+    if (appState.contentEntries.length === 0) return;
+    setValuationLoading(true);
+    setValuationError(null);
+    valuationMutation.mutateAsync({
+      companyAnswers: appState.companyAnswers as Record<string, unknown>,
+      contentEntries: appState.contentEntries.map((e) => ({
+        type: e.type,
+        customLabel: e.customLabel,
+        answers: e.answers as Record<string, unknown>,
+      })),
+      accoladesResults: Object.fromEntries(
+        Object.entries(appState.accoladesResults).map(([k, v]) => [
+          k,
+          {
+            title: v.title,
+            kind: v.kind,
+            externalRatings: v.externalRatings,
+            boxOffice: v.boxOffice,
+            certifications: v.certifications,
+            editionCount: v.editionCount,
+            valuationNote: v.valuationNote,
+          },
+        ])
+      ),
+      websiteInventory: appState.websiteInventory
+        ? {
+            siteName: appState.websiteInventory.siteName,
+            counts: appState.websiteInventory.counts as Record<string, number>,
+            signals: appState.websiteInventory.signals,
+            crawledPages: appState.websiteInventory.crawledPages,
+          }
+        : undefined,
+    })
+      .then((result) => {
+        setValuationResult(result as ValuationEstimate);
+        setValuationLoading(false);
+      })
+      .catch((err) => {
+        console.error("Valuation failed:", err);
+        setValuationError("We weren't able to generate an estimate right now. Credtent will follow up with a personalised valuation.");
+        setValuationLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.phase.stage]);
 
   // ── Summary submit handler ─────────────────────────────────────────────────
 
@@ -2399,16 +2624,23 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Valuation estimate card */}
+              <ValuationCard
+                loading={valuationLoading}
+                result={valuationResult}
+                error={valuationError}
+              />
+
               {/* Email capture */}
-              <div className="bg-[oklch(0.22_0.08_264)] rounded-2xl px-6 py-6">
+              <div className="bg-[oklch(0.22_0.08_264)]/60 rounded-2xl px-6 py-6 border border-white/10">
                 {!summarySubmitted ? (
                   <>
                     <div className="flex items-center gap-2 mb-1">
                       <Sparkles className="w-4 h-4 text-[oklch(0.68_0.19_41)]" />
-                      <h2 className="text-sm font-bold text-white">Get your valuation estimate</h2>
+                      <h2 className="text-sm font-bold text-white">Receive your full valuation report</h2>
                     </div>
                     <p className="text-xs text-white/60 mb-4">
-                      Enter your email and Credtent will follow up with a personalised content valuation based on your profile.
+                      Submit your profile and Credtent will follow up with a detailed licensing proposal based on your content library.
                     </p>
                     <div className="flex gap-2">
                       <div className="flex-1 relative">

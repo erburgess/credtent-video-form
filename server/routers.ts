@@ -13,6 +13,7 @@ import {
 } from "./db";
 import { analyzeWebsite } from "./websiteCrawler";
 import { lookupAccolades } from "./ratingsLookup";
+import { valuateContent } from "./valuateContent";
 import { notifyOwner } from "./_core/notification";
 
 // Admin-only guard
@@ -67,6 +68,55 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const omdbApiKey = process.env.OMDB_API_KEY ?? "";
         return lookupAccolades({ ...input, omdbApiKey });
+      }),
+  }),
+
+  // ── Content valuation ─────────────────────────────────────────────────────
+  valuation: router({
+    /**
+     * Synthesize all collected signals into a preliminary licensing value range.
+     * Uses the LLM to produce a structured estimate with value drivers and confidence.
+     * Public — no login required.
+     */
+    estimate: publicProcedure
+      .input(
+        z.object({
+          companyAnswers: z.record(z.string(), z.unknown()),
+          contentEntries: z.array(
+            z.object({
+              type: z.string(),
+              customLabel: z.string().optional(),
+              answers: z.record(z.string(), z.unknown()),
+            })
+          ),
+          accoladesResults: z.record(
+            z.string(),
+            z.object({
+              title: z.string(),
+              kind: z.string(),
+              externalRatings: z.array(
+                z.object({
+                  platform: z.string(),
+                  score: z.string(),
+                  voteCount: z.string().optional(),
+                })
+              ).optional(),
+              boxOffice: z.string().optional(),
+              certifications: z.array(z.string()).optional(),
+              editionCount: z.number().optional(),
+              valuationNote: z.string().optional(),
+            })
+          ).optional(),
+          websiteInventory: z.object({
+            siteName: z.string().optional(),
+            counts: z.record(z.string(), z.number()).optional(),
+            signals: z.array(z.string()).optional(),
+            crawledPages: z.number().optional(),
+          }).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return valuateContent(input);
       }),
   }),
 

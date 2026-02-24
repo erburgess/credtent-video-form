@@ -49,3 +49,9 @@
 - [x] Geographic/cultural specificity questions: is content local, regional, global, or niche-cultural
 - [x] Language and accessibility questions: languages covered, subtitles, transcripts available
 - [ ] Update PDF templates to include website, accolades, and subject matter sections
+- [x] LLM-powered valuation estimate on summary screen
+- [x] Server-side valuateContent tRPC procedure synthesizing all signals
+- [x] Preliminary licensing value range (low/mid/high) with confidence level
+- [x] Key value drivers breakdown (rarity, volume, accolades, exclusivity, etc.)
+- [x] Valuation card with streaming/loading state on summary screen
+- [x] Vitest tests for valuation procedure (8 tests, 25 total passing)
