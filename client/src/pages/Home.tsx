@@ -1600,10 +1600,14 @@ function ValuationCard({
   loading,
   result,
   error,
+  companyName,
+  contactEmail,
 }: {
   loading: boolean;
   result: ValuationEstimate | null;
   error: string | null;
+  companyName?: string;
+  contactEmail?: string;
 }) {
   if (!loading && !result && !error) return null;
 
@@ -1706,8 +1710,8 @@ function ValuationCard({
             </div>
           )}
 
-          {/* Baseline disclaimer */}
-          <div className="px-5 py-4 bg-[oklch(0.68_0.19_41)]/10 border-t border-[oklch(0.68_0.19_41)]/20">
+          {/* Baseline disclaimer + CTA */}
+          <div className="px-5 py-4 bg-[oklch(0.68_0.19_41)]/10 border-t border-[oklch(0.68_0.19_41)]/20 space-y-4">
             <div className="flex items-start gap-2.5">
               <div className="w-4 h-4 rounded-full bg-[oklch(0.68_0.19_41)]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-[oklch(0.68_0.19_41)] font-bold" style={{ fontSize: '9px', lineHeight: 1 }}>i</span>
@@ -1717,10 +1721,17 @@ function ValuationCard({
                   This is a Baseline Estimate — Not an Official Credtent Custom Valuation
                 </p>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  This figure is generated algorithmically from the information you've provided. A full <strong className="text-white/60">Credtent Custom Valuation</strong> takes a holistic view of your entire content library and incorporates expert analysis, independent research, and market intelligence to produce a defensible, audit-ready licensing value. Contact Credtent to commission a Custom Valuation.
+                  This figure is generated algorithmically from the information you've provided. A full <strong className="text-white/60">Credtent Custom Valuation</strong> takes a holistic view of your entire content library and incorporates expert analysis, independent research, and market intelligence to produce a defensible, audit-ready licensing value.
                 </p>
               </div>
             </div>
+            <a
+              href={`mailto:hello@credtent.org?subject=${encodeURIComponent(`Custom Valuation Request${companyName ? ` — ${companyName}` : ''}`)}&body=${encodeURIComponent(`Hi Credtent team,\n\nI've just completed a baseline content valuation assessment${companyName ? ` for ${companyName}` : ''} and would like to learn more about commissioning a full Custom Valuation.\n\n${contactEmail ? `Contact email: ${contactEmail}\n` : ''}\nPlease get in touch at your earliest convenience.\n\nThank you.`)}`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-[oklch(0.68_0.19_41)] hover:bg-[oklch(0.62_0.19_41)] active:scale-[0.98] transition-all text-white text-sm font-semibold shadow-md"
+            >
+              <Mail className="w-4 h-4" />
+              Get a Custom Valuation
+            </a>
           </div>
         </>
       )}
@@ -2642,6 +2653,8 @@ export default function Home() {
                 loading={valuationLoading}
                 result={valuationResult}
                 error={valuationError}
+                companyName={String(appState.companyAnswers.companyName ?? "").trim() || undefined}
+                contactEmail={String(appState.companyAnswers.contactEmail ?? "").trim() || undefined}
               />
 
               {/* Email capture */}

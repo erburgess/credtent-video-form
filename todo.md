@@ -62,3 +62,4 @@
 - [x] Vitest tests for updated submit procedure with valuation data (25 tests passing)
 - [x] Add baseline disclaimer to valuation card on summary screen (algorithmic baseline, not official Credtent Custom Valuation)
 - [x] Add baseline disclaimer to valuation card in admin dashboard detail drawer
+- [x] Add "Get a Custom Valuation" mailto CTA button below disclaimer on summary screen (mailto:hello@credtent.org with pre-filled subject/body)
