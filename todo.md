@@ -60,3 +60,5 @@
 - [x] Show valuation range badge in admin submission list (low/mid/high + confidence)
 - [x] Show full valuation breakdown in admin submission detail drawer
 - [x] Vitest tests for updated submit procedure with valuation data (25 tests passing)
+- [x] Add baseline disclaimer to valuation card on summary screen (algorithmic baseline, not official Credtent Custom Valuation)
+- [x] Add baseline disclaimer to valuation card in admin dashboard detail drawer

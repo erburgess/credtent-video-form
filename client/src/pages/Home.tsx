@@ -1706,9 +1706,21 @@ function ValuationCard({
             </div>
           )}
 
-          {/* Disclaimer */}
-          <div className="px-5 py-3 bg-white/5">
-            <p className="text-xs text-white/25 leading-relaxed italic">{result.disclaimer}</p>
+          {/* Baseline disclaimer */}
+          <div className="px-5 py-4 bg-[oklch(0.68_0.19_41)]/10 border-t border-[oklch(0.68_0.19_41)]/20">
+            <div className="flex items-start gap-2.5">
+              <div className="w-4 h-4 rounded-full bg-[oklch(0.68_0.19_41)]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[oklch(0.68_0.19_41)] font-bold" style={{ fontSize: '9px', lineHeight: 1 }}>i</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-[oklch(0.68_0.19_41)]">
+                  This is a Baseline Estimate — Not an Official Credtent Custom Valuation
+                </p>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  This figure is generated algorithmically from the information you've provided. A full <strong className="text-white/60">Credtent Custom Valuation</strong> takes a holistic view of your entire content library and incorporates expert analysis, independent research, and market intelligence to produce a defensible, audit-ready licensing value. Contact Credtent to commission a Custom Valuation.
+                </p>
+              </div>
+            </div>
           </div>
         </>
       )}

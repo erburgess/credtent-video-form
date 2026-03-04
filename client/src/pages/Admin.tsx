@@ -177,8 +177,20 @@ function ValuationCard({ estimate }: { estimate: ValuationEstimate }) {
           </div>
         )}
 
-        {/* Disclaimer */}
-        <p className="text-xs text-gray-400 leading-relaxed italic">{estimate.disclaimer}</p>
+        {/* Baseline disclaimer */}
+        <div className="flex items-start gap-2.5 bg-orange-50 rounded-lg px-3 py-3 border border-orange-100">
+          <div className="w-4 h-4 rounded-full bg-orange-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-orange-700 font-bold" style={{ fontSize: '9px', lineHeight: 1 }}>i</span>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-orange-800">
+              Baseline Estimate — Not an Official Credtent Custom Valuation
+            </p>
+            <p className="text-xs text-orange-700/80 leading-relaxed">
+              This figure is generated algorithmically from submitted data. A full <strong>Credtent Custom Valuation</strong> incorporates expert analysis, independent research, and market intelligence to produce a defensible, audit-ready licensing value.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
