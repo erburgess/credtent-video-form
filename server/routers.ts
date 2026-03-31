@@ -1,9 +1,12 @@
-import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import {
+  COOKIE_NAME,
+  ONE_YEAR_MS,
+  createSessionToken,
+  verifyAdminCredentials,
+} from "./_core/auth";
+import { publicProcedure, adminProcedure, router } from "./_core/trpc";
 import {
   createAssessment,
   getAssessmentById,
@@ -14,34 +17,54 @@ import {
 import { analyzeWebsite } from "./websiteCrawler";
 import { lookupAccolades } from "./ratingsLookup";
 import { valuateContent } from "./valuateContent";
-import { notifyOwner } from "./_core/notification";
 
-// Admin-only guard
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  }
-  return next({ ctx });
-});
+function isSecureRequest(req: { headers: Record<string, unknown>; protocol?: string }) {
+  if (req.protocol === "https") return true;
+  const proto = req.headers["x-forwarded-proto"];
+  if (typeof proto === "string") return proto.split(",").some(p => p.trim() === "https");
+  return false;
+}
 
 export const appRouter = router({
-  system: systemRouter,
-
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    /** Check current session */
+    me: publicProcedure.query(({ ctx }) => {
+      if (!ctx.session) return null;
+      return { email: ctx.session.email, role: ctx.session.role };
+    }),
+
+    /** Admin login with email + password */
+    login: publicProcedure
+      .input(z.object({ email: z.string().min(1), password: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        if (!verifyAdminCredentials(input.email, input.password)) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+        }
+        const token = await createSessionToken(input.email);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          httpOnly: true,
+          path: "/",
+          sameSite: "lax",
+          secure: isSecureRequest(ctx.req),
+          maxAge: ONE_YEAR_MS,
+        });
+        return { success: true, email: input.email };
+      }),
+
+    /** Logout */
     logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
+      ctx.res.clearCookie(COOKIE_NAME, {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        secure: isSecureRequest(ctx.req),
+      });
+      return { success: true };
     }),
   }),
 
   // ── Website analysis ────────────────────────────────────────────────────────
   website: router({
-    /**
-     * Crawl a website URL and return a content inventory.
-     * Public — no login required.
-     */
     analyze: publicProcedure
       .input(z.object({ url: z.string().min(3) }))
       .mutation(async ({ input }) => {
@@ -51,10 +74,6 @@ export const appRouter = router({
 
   // ── Accolades & ratings lookup ──────────────────────────────────────────────
   accolades: router({
-    /**
-     * Look up external ratings (IMDB, Rotten Tomatoes, Open Library) for a content title.
-     * Public — no login required.
-     */
     lookup: publicProcedure
       .input(
         z.object({
@@ -73,11 +92,6 @@ export const appRouter = router({
 
   // ── Content valuation ─────────────────────────────────────────────────────
   valuation: router({
-    /**
-     * Synthesize all collected signals into a preliminary licensing value range.
-     * Uses the LLM to produce a structured estimate with value drivers and confidence.
-     * Public — no login required.
-     */
     estimate: publicProcedure
       .input(
         z.object({
@@ -122,10 +136,6 @@ export const appRouter = router({
 
   // ── Assessment procedures ────────────────────────────────────────────────────
   assessments: router({
-    /**
-     * Submit a completed content valuation assessment.
-     * Public — no login required so any respondent can submit.
-     */
     submit: publicProcedure
       .input(
         z.object({
@@ -176,18 +186,11 @@ export const appRouter = router({
           status: "submitted",
         });
 
-        // Notify owner
-        await notifyOwner({
-          title: `New content valuation: ${companyName || "Unknown company"}`,
-          content: `${contactName} (${contactEmail}) submitted a content profile covering: ${input.completedTypes.join(", ")}. Assessment ID: ${id}`,
-        });
+        console.log(`[Assessment] New submission: ${companyName || "Unknown"} (ID: ${id})`);
 
         return { success: true, id };
       }),
 
-    /**
-     * Admin: list all assessments with optional search and pagination.
-     */
     list: adminProcedure
       .input(
         z.object({
@@ -202,9 +205,6 @@ export const appRouter = router({
         return { rows, total };
       }),
 
-    /**
-     * Admin: get a single assessment by ID.
-     */
     get: adminProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -213,9 +213,6 @@ export const appRouter = router({
         return row;
       }),
 
-    /**
-     * Admin: update the status of an assessment.
-     */
     updateStatus: adminProcedure
       .input(
         z.object({

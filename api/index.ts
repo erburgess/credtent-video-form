@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "../server/_core/oauth";
 import { appRouter } from "../server/routers";
 import { createContext } from "../server/_core/context";
 import { generateContentFormPDF } from "../server/pdfForms";
@@ -11,9 +10,6 @@ const app = express();
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// OAuth callback
-registerOAuthRoutes(app);
 
 // PDF form download endpoint
 app.get("/api/forms/download/:type", async (req, res) => {

@@ -392,58 +392,19 @@ Video embeds: ${allVideoEmbeds.length}
 
   try {
     const llmResponse = await invokeLLM({
+      system: `You are a content inventory analyst. Given crawl data about a website, produce a friendly, accurate summary of what content types are present and estimated counts. Be specific and concrete. If counts are uncertain, give a reasonable range. Always be encouraging and professional. The goal is to help the website owner understand what content they have that could be licensed for AI training. Always respond with valid JSON only — no markdown fences, no preamble.`,
       messages: [
-        {
-          role: "system",
-          content: `You are a content inventory analyst. Given crawl data about a website, produce a friendly, accurate summary of what content types are present and estimated counts. Be specific and concrete. If counts are uncertain, give a reasonable range. Always be encouraging and professional. The goal is to help the website owner understand what content they have that could be licensed for AI training.`,
-        },
         {
           role: "user",
           content: `Analyze this website crawl data and return a JSON object:\n\n${crawlSummary}\n\nReturn JSON with these fields:\n- siteName: string (clean site name)\n- description: string (1-sentence site description)\n- counts: object with keys from [written, audio, video, images, social, design, games, film, other] and integer values for estimated item counts (only include types that are clearly present)\n- suggestedTypes: array of content type keys that are clearly present\n- summary: string (2-3 friendly sentences explaining what was found, e.g. "We found approximately 4,200 articles, 87 podcast episodes, and 12 videos on your site. Your written content appears to be the primary asset...")`,
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "content_inventory",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              siteName: { type: "string" },
-              description: { type: "string" },
-              counts: {
-                type: "object",
-                properties: {
-                  written: { type: "number" },
-                  audio: { type: "number" },
-                  video: { type: "number" },
-                  images: { type: "number" },
-                  social: { type: "number" },
-                  design: { type: "number" },
-                  games: { type: "number" },
-                  film: { type: "number" },
-                  other: { type: "number" },
-                },
-                required: [],
-                additionalProperties: false,
-              },
-              suggestedTypes: {
-                type: "array",
-                items: { type: "string", enum: ["written","audio","video","images","social","design","games","film","other"] },
-              },
-              summary: { type: "string" },
-            },
-            required: ["siteName", "description", "counts", "suggestedTypes", "summary"],
-            additionalProperties: false,
-          },
-        },
-      },
     });
 
-    const raw = llmResponse?.choices?.[0]?.message?.content;
+    const raw = llmResponse?.content;
     if (raw) {
-      const parsed = JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
+      const cleaned = raw.replace(/^```json?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
       llmResult = {
         siteName: parsed.siteName || siteName,
         description: parsed.description || homeSignals.metaDescription,

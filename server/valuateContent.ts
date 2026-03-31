@@ -142,57 +142,20 @@ export async function valuateContent(input: ValuationInput): Promise<ValuationRe
   const prompt = buildPrompt(input);
 
   const response = await invokeLLM({
+    system: "You are an expert content licensing advisor. Always respond with valid JSON only — no markdown fences, no preamble.",
     messages: [
-      {
-        role: "system",
-        content: "You are an expert content licensing advisor. Always respond with valid JSON only — no markdown fences, no preamble.",
-      },
       {
         role: "user",
         content: prompt,
       },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "valuation_result",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            rangeLow:     { type: "string" },
-            rangeMid:     { type: "string" },
-            rangeHigh:    { type: "string" },
-            rangeUnit:    { type: "string" },
-            confidence:   { type: "string", enum: ["high", "medium", "low"] },
-            headline:     { type: "string" },
-            rationale:    { type: "string" },
-            valueDrivers: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  factor:      { type: "string" },
-                  impact:      { type: "string", enum: ["high", "medium", "low"] },
-                  description: { type: "string" },
-                },
-                required: ["factor", "impact", "description"],
-                additionalProperties: false,
-              },
-            },
-            caveats:    { type: "string" },
-            disclaimer: { type: "string" },
-          },
-          required: ["rangeLow", "rangeMid", "rangeHigh", "rangeUnit", "confidence", "headline", "rationale", "valueDrivers", "caveats", "disclaimer"],
-          additionalProperties: false,
-        },
-      },
-    },
   });
 
-  const raw = response.choices?.[0]?.message?.content;
+  const raw = response.content;
   if (!raw) throw new Error("LLM returned no content for valuation");
 
-  const parsed: ValuationResult = typeof raw === "string" ? JSON.parse(raw) : raw;
+  // Strip any markdown fences if present
+  const cleaned = raw.replace(/^```json?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  const parsed: ValuationResult = JSON.parse(cleaned);
   return parsed;
 }

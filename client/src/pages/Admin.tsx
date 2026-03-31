@@ -8,7 +8,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import {
   Building2, Search, ChevronRight, CheckCircle2, Clock, Archive,
   Loader2, Film, FileText, Mic, Image, Share2, Palette, Gamepad2,
@@ -362,8 +361,82 @@ function DetailDrawer({
 
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 
+function AdminLogin() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const utils = trpc.useUtils();
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: () => {
+      utils.auth.me.invalidate();
+    },
+    onError: (err) => {
+      setError(err.message || "Invalid credentials");
+    },
+  });
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[oklch(0.98_0.003_264)]">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <div className="flex items-center gap-2.5 mb-6 justify-center">
+          <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+            <path d="M20 3L5 9V20C5 28.5 11.5 36.4 20 38C28.5 36.4 35 28.5 35 20V9L20 3Z" fill="oklch(0.68 0.19 41)" />
+            <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Sora,sans-serif">C</text>
+          </svg>
+          <span className="font-bold text-lg text-[oklch(0.22_0.08_264)]">Credtent Admin</span>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError("");
+            loginMutation.mutate({ email, password });
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Email</label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@credtent.org"
+              className="h-10"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Password</label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="h-10"
+              required
+            />
+          </div>
+          {error && (
+            <p className="text-xs text-red-500 text-center">{error}</p>
+          )}
+          <Button
+            type="submit"
+            disabled={loginMutation.isPending}
+            className="w-full h-10 bg-[oklch(0.22_0.08_264)] hover:bg-[oklch(0.22_0.08_264)]/90 text-white"
+          >
+            {loginMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "Sign In"
+            )}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -395,16 +468,7 @@ export default function Admin() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[oklch(0.98_0.003_264)]">
-        <div className="text-center">
-          <p className="text-sm text-gray-500 mb-4">You need to be signed in to access the admin panel.</p>
-          <a href={getLoginUrl()} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[oklch(0.22_0.08_264)] text-white text-sm font-semibold">
-            Sign in
-          </a>
-        </div>
-      </div>
-    );
+    return <AdminLogin />;
   }
 
   if (user.role !== "admin") {
