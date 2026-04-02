@@ -165,6 +165,11 @@ export const appRouter = router({
             })),
             caveats: z.string().optional(),
             disclaimer: z.string(),
+            internalReport: z.string().optional(),
+            scoringBreakdown: z.string().optional(),
+            year1Fee: z.string().optional(),
+            ongoingAnnualFee: z.string().optional(),
+            exclusiveMultiplierNote: z.string().optional(),
           }).optional(),
         })
       )
