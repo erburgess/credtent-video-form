@@ -117,4 +117,5 @@ __manus__/
 .vercel/
 
 # Bundled API function (generated during build)
+api/index.js
 api/index.mjs

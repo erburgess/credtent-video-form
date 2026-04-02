@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "vite build",
+  "buildCommand": "vite build && node build-api.mjs",
   "outputDirectory": "dist/public",
   "framework": null,
   "rewrites": [
@@ -9,8 +9,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "maxDuration": 60,
-      "includeFiles": "server/**"
+      "maxDuration": 60
     }
   }
 }
