@@ -193,6 +193,34 @@ export const appRouter = router({
 
         console.log(`[Assessment] New submission: ${companyName || "Unknown"} (ID: ${id})`);
 
+        // Push to Sales Assistant CRM webhook
+        const webhookUrl = process.env.SALES_ASSISTANT_WEBHOOK_URL;
+        const webhookSecret = process.env.SALES_ASSISTANT_WEBHOOK_SECRET;
+        if (webhookUrl) {
+          try {
+            await fetch(webhookUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(webhookSecret ? { Authorization: `Bearer ${webhookSecret}` } : {}),
+              },
+              body: JSON.stringify({
+                companyName,
+                contactName,
+                contactEmail,
+                contentTypes: input.completedTypes.join(", "),
+                valuationEstimate: input.valuationEstimate ?? null,
+                notes: input.notes ?? null,
+                companyAnswers: input.companyAnswers,
+              }),
+            });
+            console.log(`[Assessment] Pushed to Sales Assistant CRM`);
+          } catch (err) {
+            // Don't fail the submission if webhook fails
+            console.error(`[Assessment] Sales Assistant webhook failed:`, err);
+          }
+        }
+
         return { success: true, id };
       }),
 
