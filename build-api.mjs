@@ -1,11 +1,7 @@
 import { build } from "esbuild";
-import { renameSync } from "fs";
-
-// Rename .ts so @vercel/node won't re-transpile it and overwrite our bundle
-renameSync("api/index.ts", "api/_source.ts");
 
 await build({
-  entryPoints: ["api/_source.ts"],
+  entryPoints: ["server/api-entry.ts"],
   bundle: true,
   platform: "node",
   target: "node20",
@@ -16,4 +12,4 @@ await build({
   },
 });
 
-console.log("✅ API function bundled to api/index.js");
+console.log("✅ API bundled: server/api-entry.ts → api/index.js");
