@@ -5,7 +5,7 @@ await build({
   bundle: true,
   platform: "node",
   target: "node20",
-  format: "esm",
+  format: "cjs",
   outfile: "api/index.js",
   banner: {
     js: "/* Bundled by esbuild for Vercel serverless */",
