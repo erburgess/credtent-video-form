@@ -796,13 +796,28 @@ const GAMES_QUESTIONS: Question[] = [
     id: "gamesTypes",
     ask: "What types of game or interactive content do you have?",
     type: "chips",
-    options: ["Full video games", "Game assets (art/audio/code)", "Interactive simulations", "VR/AR experiences", "Game scripts/dialogue", "Gameplay footage", "Level designs", "Other"],
+    options: ["Full video games", "Tabletop games", "Game assets (art/audio/code)", "Interactive simulations", "VR/AR experiences", "Game scripts/dialogue", "Gameplay footage", "Level designs", "Other"],
+  },
+  {
+    id: "gamesTabletopTypes",
+    ask: "What types of tabletop games are included?",
+    type: "chips",
+    options: ["Board games", "Collectible card games", "Miniatures games", "Role-playing games (RPGs)", "Live-Action Role-Playing (LARP)", "Other"],
+    showIf: (a) => Array.isArray(a.gamesTypes) && a.gamesTypes.includes("Tabletop games"),
+  },
+  {
+    id: "gamesTabletopComponents",
+    ask: "What components have been created for your tabletop games?",
+    type: "chips",
+    options: ["Game designs", "Game story writing", "Artwork", "Game components", "Other assets"],
+    showIf: (a) => Array.isArray(a.gamesTypes) && a.gamesTypes.includes("Tabletop games"),
   },
   {
     id: "gamesPlatforms",
     ask: "What platforms are the games or assets designed for?",
     type: "chips",
     options: ["PC/desktop", "Console", "Mobile", "Web browser", "VR/AR headsets", "Mixed"],
+    showIf: (a) => Array.isArray(a.gamesTypes) && !a.gamesTypes.every((t: string) => t === "Tabletop games"),
   },
   {
     id: "gamesGenres",
@@ -2062,8 +2077,16 @@ export default function Home() {
 
     if (phase.stage === "company") {
       const q = COMPANY_QUESTIONS[phase.qIndex];
-      if (!inputText.trim()) return;
-      submitAnswer(inputText.trim(), inputText.trim());
+      if (q.type === "chips" || q.type === "chips-single") {
+        if (pendingChips.length === 0 && !q.optional) return;
+        submitAnswer(pendingChips, pendingChips.join(", ") || "Skipped");
+      } else if (q.type === "toggle") {
+        if (pendingToggle === null) return;
+        submitAnswer(pendingToggle, pendingToggle ? "Yes" : "No");
+      } else {
+        if (!inputText.trim()) return;
+        submitAnswer(inputText.trim(), inputText.trim());
+      }
       return;
     }
 
